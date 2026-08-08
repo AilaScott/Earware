@@ -123,8 +123,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: pwsh
         run: |
-          TAG="${{ github.event.release.tag_name || inputs.tag }}"
-          gh release upload "$TAG" Earware_Windows_x64_VST3.zip --clobber
+          $tag = "${{ github.event.release.tag_name || inputs.tag }}"
+          gh release upload $tag Earware_Windows_x64_VST3.zip --clobber
 
   # ============================================
   # MACOS — VST3 + AU (universal)
