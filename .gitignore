@@ -1,0 +1,24 @@
+# Build artifacts
+build/
+cmake-build-*/
+out/
+
+# IDE
+.vs/
+.vscode/
+*.user
+*.suo
+
+# CMake / compiler intermediates
+CMakeCache.txt
+CMakeFiles/
+
+# Logs
+*_log.txt
+
+# Packaging
+dist/
+
+# System
+.DS_Store
+Thumbs.db

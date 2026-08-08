@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Earware v1 — Neubrutalism EQ Preview</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-yellow: #ffde00;
+  --surface-white: #ffffff;
+  --surface-blue: #0066ff;
+  --border-black: #000000;
+  --text-black: #000000;
+  --blue-hover: #0052cc;
+  --curve-line: #000000;
+  --curve-zero: #cccccc;
+  --curve-tick: #999999;
+  --dot-color: rgba(0,0,0,0.15);
+  --bypass-on-bg: #ffde00;
+  --bypass-off-bg: #ffffff;
+  --dropdown-text: #ffffff;
+  --dropdown-placeholder: rgba(255,255,255,0.6);
+  --font-primary: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+  --window-width: 600px;
+  --window-height: 450px;
+  --window-padding: 20px;
+}
+
+body {
+  font-family: var(--font-primary);
+  width: var(--window-width);
+  height: var(--window-height);
+  overflow: hidden;
+  user-select: none;
+  cursor: default;
+  background-color: var(--bg-yellow);
+  background-image: radial-gradient(circle, var(--dot-color) 2px, transparent 2px);
+  background-size: 32px 32px;
+}
+
+/* ===== HEADER ===== */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px var(--window-padding) 0;
+  height: 50px;
+}
+
+.title-wrap {
+  display: flex;
+  align-items: baseline;
+}
+
+.plugin-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-black);
+  text-transform: uppercase;
+  letter-spacing: 3px;
+}
+
+.plugin-subtitle {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-black);
+  margin-left: 8px;
+}
+
+.bypass-btn {
+  width: 90px;
+  height: 32px;
+  background: var(--bypass-off-bg);
+  border: 2px solid var(--border-black);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-black);
+  font-family: var(--font-primary);
+  padding: 0;
+  line-height: 28px;
+  text-align: center;
+  transition: background 100ms ease;
+}
+
+.bypass-btn.active {
+  background: var(--bypass-on-bg);
+}
+
+.bypass-btn:hover {
+  filter: brightness(0.95);
+}
+
+.bypass-btn:active {
+  transform: translateY(1px);
+}
+
+/* ===== DROPDOWN ===== */
+.dropdown-wrap {
+  margin: 8px var(--window-padding) 0;
+  position: relative;
+}
+
+.dropdown-input {
+  width: 100%;
+  height: 40px;
+  background: var(--surface-blue);
+  border: 3px solid var(--border-black);
+  padding: 0 40px 0 16px;
+  color: var(--dropdown-text);
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--font-primary);
+  outline: none;
+  transition: background 150ms ease;
+}
+
+.dropdown-input:focus {
+  background: var(--blue-hover);
+}
+
+.dropdown-input::placeholder {
+  color: var(--dropdown-placeholder);
+}
+
+.dropdown-arrow {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 8px solid #000000;
+  pointer-events: none;
+}
+
+/* ===== EQ CARD ===== */
+.eq-card {
+  margin: 12px var(--window-padding) 0;
+  background: var(--surface-white);
+  border: 3px solid var(--border-black);
+  height: 280px;
+  position: relative;
+  overflow: hidden;
+}
+
+.eq-card canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ===== STATUS BAR ===== */
+.status-bar {
+  padding: 10px var(--window-padding) 0;
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-black);
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="title-wrap">
+    <span class="plugin-title">Earware</span>
+    <span class="plugin-subtitle">by aila</span>
+  </span>
+  <button class="bypass-btn" id="bypassBtn" onclick="toggleBypass()">Bypass</button>
+</div>
+
+<div class="dropdown-wrap">
+  <input class="dropdown-input" id="modelInput" type="text" list="modelList"
+         placeholder="Select headphone model..."
+         autocomplete="off" spellcheck="false"
+         oninput="onModelInput(this.value)">
+  <datalist id="modelList"></datalist>
+  <span class="dropdown-arrow"></span>
+</div>
+
+<div class="eq-card">
+  <canvas id="eqCanvas"></canvas>
+</div>
+
+<div class="status-bar">
+  <span id="modelStatus">AKG K371</span>
+  <span id="bypassStatus">Active</span>
+</div>
+
+<script>
+// ============================================================
+// SAMPLE HEADPHONE MODELS (subset of 736 for preview)
+// ============================================================
+const HEADPHONE_MODELS = [
+  { cat: 'over-ear', name: 'AKG K240 Studio' },
+  { cat: 'over-ear', name: 'AKG K361' },
+  { cat: 'over-ear', name: 'AKG K371' },
+  { cat: 'over-ear', name: 'AKG K701' },
+  { cat: 'over-ear', name: 'AKG K712' },
+  { cat: 'over-ear', name: 'Audio-Technica ATH-M50x' },
+  { cat: 'over-ear', name: 'Audio-Technica ATH-R70x' },
+  { cat: 'over-ear', name: 'Beyerdynamic DT 770 Pro' },
+  { cat: 'over-ear', name: 'Beyerdynamic DT 880 Pro' },
+  { cat: 'over-ear', name: 'Beyerdynamic DT 900 Pro X' },
+  { cat: 'over-ear', name: 'Beyerdynamic DT 1990 Pro' },
+  { cat: 'over-ear', name: 'Dan Clark Audio Aeon 2 Noire' },
+  { cat: 'over-ear', name: 'Focal Clear' },
+  { cat: 'over-ear', name: 'Focal Utopia' },
+  { cat: 'over-ear', name: 'Grado SR325x' },
+  { cat: 'over-ear', name: 'Harman Kardon HK 660' },
+  { cat: 'over-ear', name: 'HEDD HEDDphone' },
+  { cat: 'over-ear', name: 'HiFiMan Edition XS' },
+  { cat: 'over-ear', name: 'HiFiMan HE400se' },
+  { cat: 'over-ear', name: 'HiFiMan Arya' },
+  { cat: 'over-ear', name: 'HiFiMan Sundara' },
+  { cat: 'over-ear', name: 'Meze 109 Pro' },
+  { cat: 'over-ear', name: 'Monolith M1060' },
+  { cat: 'over-ear', name: 'Philips Fidelio X2HR' },
+  { cat: 'over-ear', name: 'Sennheiser HD 560S' },
+  { cat: 'over-ear', name: 'Sennheiser HD 600' },
+  { cat: 'over-ear', name: 'Sennheiser HD 650' },
+  { cat: 'over-ear', name: 'Sennheiser HD 660S2' },
+  { cat: 'over-ear', name: 'Sennheiser HD 800 S' },
+  { cat: 'over-ear', name: 'Shure SRH840' },
+  { cat: 'over-ear', name: 'Sony MDR-7506' },
+  { cat: 'over-ear', name: 'Sony WH-1000XM5' },
+  { cat: 'over-ear', name: 'Stax SR-009' },
+  { cat: 'over-ear', name: 'Verum One' },
+  { cat: 'in-ear', name: '7Hz Salnotes Zero' },
+  { cat: 'in-ear', name: '64 Audio U12t' },
+  { cat: 'in-ear', name: 'Apple AirPods Pro' },
+  { cat: 'in-ear', name: 'Campfire Audio Andromeda' },
+  { cat: 'in-ear', name: 'Etymotic ER2XR' },
+  { cat: 'in-ear', name: 'Moondrop Blessing 2' },
+  { cat: 'in-ear', name: 'Samsung Galaxy Buds2 Pro' },
+  { cat: 'in-ear', name: 'Shure SE846' },
+  { cat: 'in-ear', name: 'Sony WF-1000XM5' },
+  { cat: 'in-ear', name: 'ThieAudio Monarch MKII' },
+  { cat: 'in-ear', name: 'Truthear Hexa' },
+];
+
+// ============================================================
+// REAL EQ CURVE DATA — AKG K371 (232 sampled points)
+// ============================================================
+const curveData = [
+  [20.0, -2.58],[20.6, -2.54],[21.2, -2.52],[21.9, -2.51],[22.5, -2.52],[23.2, -2.53],[23.9, -2.56],[24.6, -2.58],[25.4, -2.57],[26.2, -2.54],[27.0, -2.51],[27.8, -2.48],[28.6, -2.45],[29.5, -2.41],[30.4, -2.37],[31.3, -2.32],[32.2, -2.26],[33.2, -2.20],[34.2, -2.15],[35.3, -2.09],[36.3, -2.02],[37.4, -1.95],[38.6, -1.87],[39.7, -1.79],[40.9, -1.69],[42.2, -1.60],[43.5, -1.49],[44.8, -1.38],[46.1, -1.25],[47.5, -1.11],[49.0, -0.98],[50.5, -0.84],[52.0, -0.68],[53.6, -0.49],[55.2, -0.30],[56.9, -0.11],[58.6, 0.06],[60.4, 0.21],[62.2, 0.34],[64.1, 0.44],[66.0, 0.52],[68.0, 0.55],[70.1, 0.53],[72.2, 0.48],[74.4, 0.38],[76.6, 0.27],[79.0, 0.13],[81.3, -0.00],[83.8, -0.15],[86.3, -0.30],[89.0, -0.47],[91.7, -0.63],[94.4, -0.75],[97.3, -0.81],[100.2, -0.84],[103.3, -0.85],[106.4, -0.89],[109.6, -0.95],[113.0, -1.05],[116.4, -1.15],[119.9, -1.25],[123.5, -1.36],[127.3, -1.49],[131.2, -1.64],[135.1, -1.79],[139.2, -1.90],[143.4, -1.99],[147.8, -2.05],[152.3, -2.07],[156.9, -2.05],[161.6, -2.00],[166.5, -1.95],[171.6, -1.96],[176.8, -2.01],[182.1, -2.09],[187.7, -2.17],[193.3, -2.21],[199.2, -2.21],[205.2, -2.15],[211.4, -2.06],[217.8, -1.95],[224.4, -1.81],[231.2, -1.68],[238.3, -1.55],[245.5, -1.46],[252.9, -1.39],[260.6, -1.36],[268.5, -1.32],[276.6, -1.27],[285.0, -1.20],[293.6, -1.11],[302.5, -1.01],[311.7, -0.91],[321.1, -0.80],[330.9, -0.70],[340.9, -0.60],[351.2, -0.50],[361.9, -0.42],[372.8, -0.35],[384.1, -0.28],[395.8, -0.22],[407.8, -0.17],[420.1, -0.12],[432.9, -0.08],[446.0, -0.05],[459.5, -0.01],[473.4, 0.03],[487.7, 0.03],[502.5, 0.03],[517.8, 0.04],[533.4, 0.06],[549.6, 0.07],[566.2, 0.08],[583.4, 0.08],[601.1, 0.08],[619.3, 0.07],[638.1, 0.05],[657.4, 0.02],[677.3, -0.01],[697.9, -0.05],[719.0, -0.09],[740.8, -0.15],[763.2, -0.21],[786.4, -0.28],[810.2, -0.34],[834.7, -0.41],[860.0, -0.47],[886.1, -0.54],[912.9, -0.61],[940.6, -0.66],[969.1, -0.71],[998.5, -0.76],[1028.7, -0.80],[1059.9, -0.82],[1092.0, -0.81],[1125.1, -0.78],[1159.2, -0.72],[1194.3, -0.66],[1230.5, -0.58],[1267.8, -0.48],[1306.2, -0.35],[1345.8, -0.22],[1386.5, -0.14],[1428.6, -0.15],[1471.8, -0.19],[1516.5, -0.22],[1562.4, -0.19],[1609.7, -0.11],[1658.5, -0.02],[1708.8, 0.07],[1760.5, 0.17],[1813.9, 0.28],[1868.9, 0.40],[1925.5, 0.54],[1983.8, 0.66],[2043.9, 0.75],[2105.9, 0.79],[2169.7, 0.77],[2235.4, 0.69],[2303.2, 0.54],[2372.9, 0.37],[2444.9, 0.21],[2518.9, 0.10],[2595.3, 0.06],[2673.9, 0.08],[2754.9, 0.15],[2838.4, 0.27],[2924.4, 0.43],[3013.0, 0.66],[3104.3, 0.93],[3198.4, 1.10],[3295.3, 1.25],[3395.2, 1.60],[3498.0, 2.24],[3604.0, 3.04],[3713.2, 3.83],[3825.7, 4.64],[3941.7, 5.45],[4061.1, 5.80],[4184.1, 5.49],[4310.9, 4.67],[4441.6, 3.79],[4576.1, 2.92],[4714.8, 2.06],[4857.7, 1.30],[5004.9, 0.67],[5156.5, 0.15],[5312.8, -0.22],[5473.8, -0.43],[5639.6, -0.47],[5810.5, -0.43],[5986.6, -0.37],[6168.0, -0.29],[6354.9, -0.14],[6547.4, -0.02],[6745.8, -0.04],[6950.2, -0.09],[7160.8, 0.01],[7377.8, 0.22],[7601.3, 0.39],[7831.7, 0.47],[8069.0, 0.58],[8313.5, 0.75],[8565.4, 1.02],[8824.9, 1.34],[9092.3, 1.71],[9367.8, 2.09],[9651.7, 2.49],[9944.1, 2.82],[10245.5, 3.00],[10555.9, 3.05],[10875.8, 3.04],[11205.3, 3.03],[11544.8, 3.00],[11894.7, 2.96],[12255.1, 2.89],[12626.4, 2.81],[13009.0, 2.71],[13403.2, 2.60],[13809.3, 2.46],[14227.8, 2.31],[14658.9, 2.14],[15103.1, 1.96],[15560.7, 1.75],[16032.2, 1.53],[16518.0, 1.29],[17018.5, 1.03],[17534.2, 0.76],[18065.5, 0.46],[18612.9, 0.15],[19176.9, -0.18],[19758.0, -0.52]
+];
+
+// ============================================================
+// STATE
+// ============================================================
+let bypassed = false;
+let currentModelName = 'AKG K371';
+
+// ============================================================
+// INIT DATALIST
+// ============================================================
+(function initModelList() {
+  const dl = document.getElementById('modelList');
+  HEADPHONE_MODELS.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m.name;
+    dl.appendChild(opt);
+  });
+})();
+
+// ============================================================
+// BYPASS TOGGLE
+// ============================================================
+function toggleBypass() {
+  bypassed = !bypassed;
+  const btn = document.getElementById('bypassBtn');
+  btn.classList.toggle('active', bypassed);
+  document.getElementById('bypassStatus').textContent = bypassed ? 'Bypassed' : 'Active';
+}
+
+// ============================================================
+// MODEL INPUT
+// ============================================================
+function onModelInput(val) {
+  const match = HEADPHONE_MODELS.find(m => m.name === val);
+  if (match) {
+    currentModelName = match.name;
+    document.getElementById('modelStatus').textContent = currentModelName;
+    drawCurve();
+  }
+}
+
+// ============================================================
+// CANVAS CURVE RENDERING
+// ============================================================
+function drawCurve() {
+  const canvas = document.getElementById('eqCanvas');
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const w = rect.width;
+  const h = rect.height;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const pad = { top: 16, bottom: 22, left: 44, right: 16 };
+  const plotW = w - pad.left - pad.right;
+  const plotH = h - pad.top - pad.bottom;
+
+  // Background
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+
+  // Zero dB line
+  const zeroY = pad.top + plotH / 2;
+  ctx.strokeStyle = '#cccccc';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, zeroY);
+  ctx.lineTo(w - pad.right, zeroY);
+  ctx.stroke();
+
+  // Frequency axis ticks & labels
+  const freqs = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
+  ctx.fillStyle = '#999999';
+  ctx.font = '11px ' + getComputedStyle(document.body).fontFamily;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+
+  freqs.forEach(f => {
+    const x = pad.left + (Math.log(f / 20) / Math.log(20000 / 20)) * plotW;
+    // Tick mark
+    ctx.strokeStyle = '#dddddd';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x, pad.top);
+    ctx.lineTo(x, h - pad.bottom);
+    ctx.stroke();
+    // Label
+    const label = f >= 1000 ? (f / 1000) + 'k' : f + '';
+    ctx.fillStyle = '#999999';
+    ctx.fillText(label, x, h - pad.bottom + 4);
+  });
+
+  // Gain labels
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  [-12, -6, 0, 6, 12].forEach(db => {
+    const y = zeroY - (db / 12) * (plotH / 2);
+    if (y >= pad.top && y <= h - pad.bottom) {
+      ctx.fillStyle = '#cccccc';
+      ctx.fillText(db + '', pad.left - 8, y);
+    }
+  });
+
+  // EQ curve
+  if (curveData && curveData.length > 0) {
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (let i = 0; i < curveData.length; i++) {
+      const [freq, gain] = curveData[i];
+      const x = pad.left + (Math.log(freq / 20) / Math.log(20000 / 20)) * plotW;
+      const y = zeroY - (gain / 12) * (plotH / 2);
+      if (i === 0) ctx.moveTo(x, Math.max(pad.top, Math.min(h - pad.bottom, y)));
+      else ctx.lineTo(x, Math.max(pad.top, Math.min(h - pad.bottom, y)));
+    }
+    ctx.stroke();
+  }
+}
+
+// ============================================================
+// RESIZE
+// ============================================================
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(drawCurve, 50);
+});
+
+// ============================================================
+// INIT
+// ============================================================
+document.addEventListener('DOMContentLoaded', drawCurve);
+</script>
+</body>
+</html>

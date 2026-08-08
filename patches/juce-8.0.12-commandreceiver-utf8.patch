@@ -1,0 +1,23 @@
+diff --git a/modules/juce_gui_extra/native/juce_WebBrowserComponent_linux.cpp b/modules/juce_gui_extra/native/juce_WebBrowserComponent_linux.cpp
+index 0ea1c1e4dd..a45f4e6dec 100644
+--- a/modules/juce_gui_extra/native/juce_WebBrowserComponent_linux.cpp
++++ b/modules/juce_gui_extra/native/juce_WebBrowserComponent_linux.cpp
+@@ -514,7 +514,8 @@ public:
+ 
+         auto json = JSON::toString (var (obj.get()));
+ 
+-        auto jsonLength = static_cast<size_t> (json.length());
++        auto utf8       = json.toRawUTF8();
++        auto jsonLength = json.getNumBytesAsUTF8();
+         auto len        = sizeof (size_t) + jsonLength;
+ 
+         HeapBlock<char> buffer (len);
+@@ -523,7 +524,7 @@ public:
+         memcpy (dst, &jsonLength, sizeof (size_t));
+         dst += sizeof (size_t);
+ 
+-        memcpy (dst, json.toRawUTF8(), jsonLength);
++        memcpy (dst, utf8, jsonLength);
+ 
+         ssize_t ret;
+ 

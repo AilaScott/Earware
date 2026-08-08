@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=600, initial-scale=1.0">
+<title>Earware</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-yellow: #ffde00;
+  --surface-white: #ffffff;
+  --surface-blue: #0066ff;
+  --border-black: #000000;
+  --text-black: #000000;
+  --blue-hover: #0052cc;
+  --curve-line: #000000;
+  --curve-zero: #cccccc;
+  --curve-tick: #999999;
+  --dot-color: rgba(0,0,0,0.15);
+  --bypass-on-bg: #ffde00;
+  --bypass-off-bg: #ffffff;
+  --dropdown-text: #ffffff;
+  --dropdown-placeholder: rgba(255,255,255,0.6);
+  --font-primary: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --window-padding: 20px;
+}
+
+html, body {
+  width: 600px;
+  height: 450px;
+  overflow: hidden;
+  font-family: var(--font-primary);
+  user-select: none;
+  cursor: default;
+  background-color: var(--bg-yellow);
+  background-image: radial-gradient(circle, var(--dot-color) 2px, transparent 2px);
+  background-size: 32px 32px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px var(--window-padding) 0;
+  height: 50px;
+}
+
+.title-wrap {
+  display: flex;
+  align-items: baseline;
+}
+
+.plugin-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-black);
+  text-transform: uppercase;
+  letter-spacing: 3px;
+}
+
+.plugin-subtitle {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-black);
+  margin-left: 8px;
+}
+
+.bypass-btn {
+  width: 90px;
+  height: 32px;
+  background: var(--bypass-off-bg);
+  border: 2px solid var(--border-black);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-black);
+  font-family: var(--font-primary);
+  padding: 0;
+  line-height: 28px;
+  text-align: center;
+}
+
+.bypass-btn.active {
+  background: var(--bypass-on-bg);
+}
+
+.bypass-btn:hover {
+  filter: brightness(0.95);
+}
+
+.bypass-btn:active {
+  transform: translateY(1px);
+}
+
+.dropdown-wrap {
+  margin: 8px var(--window-padding) 0;
+  position: relative;
+}
+
+.dropdown-input {
+  width: 100%;
+  height: 40px;
+  background: var(--surface-blue);
+  border: 3px solid var(--border-black);
+  padding: 0 40px 0 16px;
+  color: var(--dropdown-text);
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--font-primary);
+  outline: none;
+}
+
+.dropdown-input:focus {
+  background: var(--blue-hover);
+}
+
+.dropdown-input::placeholder {
+  color: var(--dropdown-placeholder);
+}
+
+.dropdown-arrow {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 8px solid #000000;
+  pointer-events: none;
+}
+
+.eq-card {
+  margin: 12px var(--window-padding) 0;
+  background: var(--surface-white);
+  border: 3px solid var(--border-black);
+  height: 280px;
+  position: relative;
+  overflow: hidden;
+}
+
+.eq-card canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.no-curve-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #cccccc;
+  font-size: 14px;
+  font-weight: 500;
+  pointer-events: none;
+  transition: opacity 300ms ease;
+}
+
+.status-bar {
+  padding: 10px var(--window-padding) 0;
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-black);
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="title-wrap">
+    <span class="plugin-title">Earware</span>
+    <span class="plugin-subtitle">by aila</span>
+  </span>
+  <button class="bypass-btn" id="bypassBtn">Bypass</button>
+</div>
+
+<div class="dropdown-wrap">
+  <input class="dropdown-input" id="modelInput" type="text" list="modelList"
+         placeholder="Select headphone model..."
+         autocomplete="off" spellcheck="false">
+  <datalist id="modelList"></datalist>
+  <span class="dropdown-arrow"></span>
+</div>
+
+<div class="eq-card">
+  <canvas id="eqCanvas"></canvas>
+  <div class="no-curve-overlay" id="noCurveOverlay">Select a model to view EQ curve</div>
+</div>
+
+<div class="status-bar">
+  <span id="modelStatus">No model selected</span>
+  <span id="bypassStatus">Active</span>
+</div>
+
+<script src="js/juce/check_native_interop.js"></script>
+<script type="module" src="js/juce/index.js"></script>
+<script type="module" src="js/index.js"></script>
+</body>
+</html>
