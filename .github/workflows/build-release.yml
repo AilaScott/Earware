@@ -6,18 +6,23 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to upload artifacts to (e.g. v0.1.0)"
-        required: true
+        description: "Release tag to also upload artifacts to (e.g. v0.1.0)"
+        required: false
+        type: string
 
 permissions:
   contents: write
 
 jobs:
+  # ============================================
+  # LINUX — VST3
+  # ============================================
   build-linux:
+    name: Build Linux (VST3)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
 
@@ -33,48 +38,148 @@ jobs:
             xvfb
 
       - name: Configure
-        run: xvfb-run cmake -B build -DCMAKE_BUILD_TYPE=Release
+        run: xvfb-run cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
       - name: Build VST3
-        run: xvfb-run cmake --build build --config Release --target Earware_VST3
+        run: xvfb-run cmake --build build --target Earware_VST3
 
-      - name: Package VST3
-        run: zip -r Earware_Linux_x64_VST3.zip build/plugins/Earware/Earware_artefacts/Release/VST3/
+      - name: Build render test
+        run: xvfb-run cmake --build build --target earware_rendertest
+
+      - name: Run render test (headless)
+        run: xvfb-run ./build/plugins/Earware/earware_rendertest
+
+      - name: Package VST3 (flat)
+        run: |
+          mkdir -p dist
+          find build -name "*.vst3" -exec cp -R {} dist/ \;
+          cd dist
+          zip -r ../Earware_Linux_x64_VST3.zip .
+          cd ..
+          echo "Packaged:" && unzip -l Earware_Linux_x64_VST3.zip | head -20
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: Earware_Linux_x64_VST3
+          path: dist/
+          if-no-files-found: error
 
       - name: Upload to release
+        if: ${{ github.event.release.tag_name != '' || inputs.tag != '' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${{ github.event.release.tag_name || github.event.inputs.tag }}"
-          gh release upload "$TAG" \
-            Earware_Linux_x64_VST3.zip \
-            --clobber
+          TAG="${{ github.event.release.tag_name || inputs.tag }}"
+          gh release upload "$TAG" Earware_Linux_x64_VST3.zip --clobber
 
+  # ============================================
+  # WINDOWS — VST3
+  # ============================================
+  build-windows:
+    name: Build Windows (VST3)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Install WebView2 SDK
+        shell: pwsh
+        run: |
+          nuget install Microsoft.Web.WebView2 -Version 1.0.3485.44 `
+            -OutputDirectory "${{ runner.temp }}/webview2"
+
+      - name: Configure
+        shell: pwsh
+        run: |
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 `
+            "-DJUCE_WEBVIEW2_PACKAGE_LOCATION=${{ runner.temp }}/webview2"
+
+      - name: Build VST3
+        run: cmake --build build --config Release --target Earware_VST3
+
+      - name: Package VST3 (flat)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Get-ChildItem -Path build -Recurse -Directory -Filter *.vst3 |
+            Copy-Item -Destination dist -Recurse
+          Push-Location dist
+          Compress-Archive -Path Earware.vst3 -DestinationPath ..\Earware_Windows_x64_VST3.zip
+          Pop-Location
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: Earware_Windows_x64_VST3
+          path: dist/
+          if-no-files-found: error
+
+      - name: Upload to release
+        if: ${{ github.event.release.tag_name != '' || inputs.tag != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+        run: |
+          TAG="${{ github.event.release.tag_name || inputs.tag }}"
+          gh release upload "$TAG" Earware_Windows_x64_VST3.zip --clobber
+
+  # ============================================
+  # MACOS — VST3 + AU (universal)
+  # ============================================
   build-macos:
+    name: Build macOS (VST3 + AU)
     runs-on: macos-14
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: recursive
 
       - name: Configure
-        run: cmake -B build -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_BUILD_TYPE=Release
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=10.13
 
-      - name: Build
-        run: cmake --build build --config Release
+      - name: Build VST3
+        run: cmake --build build --config Release --target Earware_VST3
 
-      - name: Package VST3
-        run: zip -r Earware_macOS_Universal_VST3.zip build/plugins/Earware/Earware_artefacts/Release/VST3/
+      - name: Build AU
+        run: cmake --build build --config Release --target Earware_AU
 
-      - name: Package AU
-        run: zip -r Earware_macOS_Universal_AU.zip build/plugins/Earware/Earware_artefacts/Release/AU/
+      - name: Ad-hoc codesign
+        run: |
+          find build -name "*.vst3"     -type d -exec codesign --force --deep -s - {} \;
+          find build -name "*.component" -type d -exec codesign --force --deep -s - {} \;
+
+      - name: Package VST3 + AU (flat)
+        run: |
+          mkdir -p dist
+          find build -name "*.vst3"     -exec cp -R {} dist/ \;
+          find build -name "*.component" -exec cp -R {} dist/ \;
+          cd dist
+          zip -r ../Earware_macOS_Universal_VST3.zip Earware.vst3
+          zip -r ../Earware_macOS_Universal_AU.zip Earware.component
+          cd ..
+          echo "Packaged:" && unzip -l Earware_macOS_Universal_VST3.zip | head -20
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: Earware_macOS_Universal
+          path: dist/
+          if-no-files-found: error
 
       - name: Upload to release
+        if: ${{ github.event.release.tag_name != '' || inputs.tag != '' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${{ github.event.release.tag_name || github.event.inputs.tag }}"
+          TAG="${{ github.event.release.tag_name || inputs.tag }}"
           gh release upload "$TAG" \
             Earware_macOS_Universal_VST3.zip \
             Earware_macOS_Universal_AU.zip \
