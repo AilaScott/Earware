@@ -29,13 +29,14 @@ jobs:
             libgtk-3-dev \
             libjack-jackd2-dev \
             libasound2-dev \
-            pkg-config
+            pkg-config \
+            xvfb
 
       - name: Configure
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+        run: xvfb-run cmake -B build -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        run: cmake --build build --config Release
+        run: xvfb-run cmake --build build --config Release
 
       - name: Package VST3
         run: zip -r Earware_Linux_x64_VST3.zip build/plugins/Earware/Earware_artefacts/Release/VST3/
