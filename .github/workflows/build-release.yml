@@ -35,14 +35,11 @@ jobs:
       - name: Configure
         run: xvfb-run cmake -B build -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build
-        run: xvfb-run cmake --build build --config Release
+      - name: Build VST3
+        run: xvfb-run cmake --build build --config Release --target Earware_VST3
 
       - name: Package VST3
         run: zip -r Earware_Linux_x64_VST3.zip build/plugins/Earware/Earware_artefacts/Release/VST3/
-
-      - name: Package LV2
-        run: zip -r Earware_Linux_x64_LV2.zip build/plugins/Earware/Earware_artefacts/Release/LV2/
 
       - name: Upload to release
         env:
@@ -51,7 +48,6 @@ jobs:
           TAG="${{ github.event.release.tag_name || github.event.inputs.tag }}"
           gh release upload "$TAG" \
             Earware_Linux_x64_VST3.zip \
-            Earware_Linux_x64_LV2.zip \
             --clobber
 
   build-macos:
