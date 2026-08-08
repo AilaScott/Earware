@@ -1,47 +1,31 @@
 # Earware
 
-Earware is a preset-based corrective EQ plugin that applies [oratory1990](https://github.com/jaakkopasanen/AutoEq) headphone correction curves via parametric EQ filters.
+Earware is a preset-based corrective EQ that flattens your headphones toward a neutral target. Pick your model from a searchable library of **736 presets** from [oratory1990](https://github.com/jaakkopasanen/AutoEq)'s measured database, and Earware applies the matching correction — 10 biquad filters plus a preamp — while a live graph shows the EQ curve and a one-click **Bypass** lets you A/B against the uncorrected signal.
 
-Pick your headphone model from a searchable library of **736 presets** and Earware applies the matching EQ curve (10 biquad filters + preamp) to flatten your headphones toward a neutral target.
+![Earware plugin screenshot](docs/screenshot.png)
 
-## Features
+> **macOS — we need your help.** The macOS VST3/AU build is new and not yet field-tested. Please try it in your DAW and [open an issue](https://github.com/AilaScott/Earware/issues/new), including which DAW you're using. Linux and Windows are tested in Reaper.
 
-- **736 headphone presets** — over-ear, in-ear, and earbud models from oratory1990's measured database
-- **HTML/JS UI** — vector-drawn EQ curve display, searchable model dropdown, one-click bypass
-- **Bypass** toggle for A/B comparison of corrected vs. uncorrected audio
-- Plugin formats: **VST3** (Linux/Windows), **VST3 + AU** (macOS)
+## Get it
 
-## Downloads
+Download the build for your platform from the [Releases](https://github.com/AilaScott/Earware/releases) page:
 
-Pre-built binaries are available on the [Releases](https://github.com/AilaScott/Earware/releases) page:
-
-| Platform | Formats | Artifacts |
-|----------|---------|-----------|
+| Platform | Formats | Files |
+|----------|---------|-------|
 | Linux x64 | VST3 | `Earware_Linux_x64_VST3.zip` |
 | Windows x64 | VST3 | `Earware_Windows_x64_VST3.zip` |
 | macOS (Universal) | VST3, AU | `Earware_macOS_Universal_VST3.zip`, `Earware_macOS_Universal_AU.zip` |
 
-## Platforms
+To install, unzip and copy the plugin folder into your audio plugin directory:
 
-Earware is developed **Linux-first**: the preferred/reference target and where it receives the most testing. It is confirmed working in **Reaper on both Linux and Windows**.
+- **VST3** — `~/.vst3/` (Linux), `C:\Program Files\Common Files\VST3\` (Windows), `~/Library/Audio/Plug-Ins/VST3/` (macOS)
+- **AU (macOS)** — `~/Library/Audio/Plug-Ins/Components/`
 
-| Platform | Formats | Status |
-|----------|---------|--------|
-| Linux x64 | VST3 | Primary target — tested in Reaper |
-| Windows x64 | VST3 | Supported — tested in Reaper |
-| macOS (Universal) | VST3, AU | Supported — not yet tested |
+See the [user manual](plugins/Earware/Documentation/USER_MANUAL.md) for full usage.
 
-## Requirements
+## For developers
 
-- **CMake** ≥ 3.22
-- A C++20 compiler
-- **JUCE 8.0.12** (included as a git submodule, with a small vendored patch — see [patches/](patches/))
-- Per-platform WebView backend:
-  - **Windows:** WebView2 SDK (resolved automatically via NuGet at configure time)
-  - **Linux:** WebKitGTK (`libwebkit2gtk-4.1-dev`, `libgtk-3-dev`, `libjack-jackd2-dev`)
-  - **macOS:** WKWebView (system)
-
-## Building
+Building from source requires **CMake ≥ 3.22**, a **C++20 compiler**, and the **JUCE 8.0.12** git submodule (a vendored JSON-length fix is applied at configure time — see `patches/`). Platform tooling: WebKitGTK/GTK3/Jack/ALSA on Linux, Visual Studio 2022 + the WebView2 SDK (resolved via NuGet) on Windows, and the system WKWebView on macOS.
 
 ```bash
 git clone https://github.com/AilaScott/Earware.git
@@ -51,35 +35,10 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 ```
 
-Build targets:
+Targets: `Earware_VST3` (all platforms), `Earware_AU` (macOS), `earware_rendertest` (Linux headless render test).
 
-- `Earware_VST3` — VST3 plugin (all platforms)
-- `Earware_AU` — AU plugin (macOS)
-- `earware_rendertest` — Linux-only headless render test
-
-The plugin UI is an embedded HTML/JS WebView. On Windows, a WebView2 user-data folder is created under the system temp directory on first launch.
-
-## Installation
-
-- **VST3:** copy `Earware.vst3` to your VST3 directory (`~/.vst3/` on Linux, `%COMMONPROGRAMFILES%\VST3\` on Windows).
-- **AU (macOS):** copy `Earware.component` to `/Library/Audio/Plug-Ins/Components/`.
-
-See [plugins/Earware/Documentation/USER_MANUAL.md](plugins/Earware/Documentation/USER_MANUAL.md) for usage, and [plugins/Earware/Documentation/WINDOWS_BUILD.md](plugins/Earware/Documentation/WINDOWS_BUILD.md) for detailed Windows build notes.
-
-## Layout
-
-```
-Earware/
-├── CMakeLists.txt            # root build: platform flags, JUCE, plugin
-├── patches/                  # vendored JUCE patches applied at configure time
-├── _tools/JUCE/              # git submodule — juce-framework/JUCE @ 8.0.12
-└── plugins/Earware/          # the plugin
-    ├── Source/               # DSP + editor code
-    │   └── ui/public/        # HTML/JS UI embedded into the binary
-    ├── generate_data.py      # regenerates ParametricEQData.cpp from AutoEq data
-    └── Documentation/        # user manual, build docs
-```
+Details: [Windows build notes](plugins/Earware/Documentation/WINDOWS_BUILD.md) and [build/CI reference](docs/BUILD_AND_CI_REFERENCE.md).
 
 ## License
 
-GPL-3.0. This plugin uses [JUCE](https://juce.com) (GPL-3.0) and headphone data from [oratory1990/AutoEq](https://github.com/jaakkopasanen/AutoEq).
+GPL-3.0. Uses [JUCE](https://juce.com) (GPL-3.0) and headphone data from [oratory1990/AutoEq](https://github.com/jaakkopasanen/AutoEq).
