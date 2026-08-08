@@ -11,15 +11,25 @@ Pick your headphone model from a searchable library of **736 presets** and Earwa
 - **Bypass** toggle for A/B comparison of corrected vs. uncorrected audio
 - Plugin formats: **VST3**, **LV2**, **AU**, and **Standalone**
 
+## Downloads
+
+Pre-built binaries are available on the [Releases](https://github.com/AilaScott/Earware/releases) page:
+
+| Platform | Formats | Artifacts |
+|----------|---------|-----------|
+| Linux x64 | VST3, LV2 | `Earware_Linux_x64_VST3.zip`, `Earware_Linux_x64_LV2.zip` |
+| Windows x64 | VST3, Standalone | `Earware_Windows_x64_VST3.zip`, `Earware_Windows_x64_Standalone.zip` |
+| macOS (Universal) | VST3, AU | `Earware_macOS_Universal_VST3.zip`, `Earware_macOS_Universal_AU.zip` |
+
 ## Platforms
 
 Earware is developed **Linux-first**: the preferred/reference target and where it receives the most testing. It is confirmed working in **Reaper on both Linux and Windows**.
 
-| Platform | Status |
-|----------|--------|
-| Linux (VST3 / LV2 / Standalone) | Primary target — tested in Reaper |
-| Windows (VST3 / Standalone) | Supported — tested in Reaper |
-| macOS (VST3 / AU / Standalone) | Buildable, not yet tested |
+| Platform | Formats | Status |
+|----------|---------|--------|
+| Linux x64 | VST3, LV2, Standalone | Primary target — tested in Reaper |
+| Windows x64 | VST3, Standalone | Supported — tested in Reaper |
+| macOS (Universal) | VST3, AU, Standalone | Supported — not yet tested |
 
 ## Requirements
 
