@@ -17,7 +17,7 @@ Pre-built binaries are available on the [Releases](https://github.com/AilaScott/
 
 | Platform | Formats | Artifacts |
 |----------|---------|-----------|
-| Linux x64 | VST3, LV2 | `Earware_Linux_x64_VST3.zip`, `Earware_Linux_x64_LV2.zip` |
+| Linux x64 | VST3 | `Earware_Linux_x64_VST3.zip` |
 | Windows x64 | VST3, Standalone | `Earware_Windows_x64_VST3.zip`, `Earware_Windows_x64_Standalone.zip` |
 | macOS (Universal) | VST3, AU | `Earware_macOS_Universal_VST3.zip`, `Earware_macOS_Universal_AU.zip` |
 
