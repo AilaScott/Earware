@@ -46,28 +46,52 @@ if(NOT EXISTS "${JUCE_DIR}/CMakeLists.txt")
     message(FATAL_ERROR "JUCE submodule missing at ${JUCE_DIR}. Run: git submodule update --init --recursive")
 endif()
 
-# Apply the required Linux WebView fix (see patches/) before JUCE is configured.
-# The patch changes how JUCE's Linux WebBrowserComponent measures JSON byte
-# length for its CommandReceiver IPC, which fixes the WebView UI on Linux.
-find_package(Git QUIET)
-if(Git_FOUND)
-    execute_process(
-        COMMAND ${GIT_EXECUTABLE} -C "${JUCE_DIR}" apply --check "${CMAKE_CURRENT_SOURCE_DIR}/patches/juce-8.0.12-commandreceiver-utf8.patch"
-        RESULT_VARIABLE JUCE_PATCH_CHECK_RESULT
-        OUTPUT_QUIET ERROR_QUIET
-    )
-    if(JUCE_PATCH_CHECK_RESULT EQUAL 0)
-        execute_process(
-            COMMAND ${GIT_EXECUTABLE} -C "${JUCE_DIR}" apply "${CMAKE_CURRENT_SOURCE_DIR}/patches/juce-8.0.12-commandreceiver-utf8.patch"
-            RESULT_VARIABLE JUCE_PATCH_APPLY_RESULT
-        )
-        if(NOT JUCE_PATCH_APPLY_RESULT EQUAL 0)
-            message(WARNING "Failed to apply JUCE patch (it may already be applied)")
+# Apply the required Linux WebView fix before JUCE is configured.
+#
+# JUCE 8.0.12's Linux WebBrowserComponent measures its CommandReceiver IPC JSON
+# by CHARACTER COUNT instead of UTF-8 BYTE COUNT, truncating the WebView init
+# message whenever it contains multibyte characters. The UI then fails to
+# render (blank/white window). This change (see patches/) makes JUCE use
+# String::getNumBytesAsUTF8().
+#
+# This is applied deterministically: if the fix is missing we replace the exact
+# source line, and we FAIL LOUDLY if the source is not what we expect — a build
+# can never silently ship an unfixed JUCE.
+if(EARWARE_PLATFORM_LINUX)
+    set(JUCE_LINUX_WEBVIEW_CPP "${JUCE_DIR}/modules/juce_gui_extra/native/juce_WebBrowserComponent_linux.cpp")
+
+    if(EXISTS "${JUCE_LINUX_WEBVIEW_CPP}")
+        file(READ "${JUCE_LINUX_WEBVIEW_CPP}" JUCE_LINUX_WEBVIEW_CONTENT)
+
+        if(NOT JUCE_LINUX_WEBVIEW_CONTENT MATCHES "json\\.getNumBytesAsUTF8")
+            set(JUCE_JSON_LENGTH_LINE "auto jsonLength = static_cast<size_t> (json.length());")
+            set(JUCE_MEMCPY_LINE "memcpy (dst, json.toRawUTF8(), jsonLength);")
+            string(FIND "${JUCE_LINUX_WEBVIEW_CONTENT}" "${JUCE_JSON_LENGTH_LINE}" JUCE_JSON_LENGTH_POS)
+            string(FIND "${JUCE_LINUX_WEBVIEW_CONTENT}" "${JUCE_MEMCPY_LINE}" JUCE_MEMCPY_POS)
+
+            if(JUCE_JSON_LENGTH_POS EQUAL -1)
+                message(FATAL_ERROR
+                    "JUCE Linux WebView fix: could not locate the CommandReceiver JSON length line in "
+                    "${JUCE_LINUX_WEBVIEW_CPP}. Expected the stock JUCE 8.0.12 source.")
+            endif()
+
+            string(REPLACE
+                "${JUCE_JSON_LENGTH_LINE}"
+                "auto utf8       = json.toRawUTF8();\n        auto jsonLength = json.getNumBytesAsUTF8();"
+                JUCE_LINUX_WEBVIEW_CONTENT "${JUCE_LINUX_WEBVIEW_CONTENT}")
+
+            if(JUCE_MEMCPY_POS GREATER -1)
+                string(REPLACE
+                    "${JUCE_MEMCPY_LINE}"
+                    "memcpy (dst, utf8, jsonLength);"
+                    JUCE_LINUX_WEBVIEW_CONTENT "${JUCE_LINUX_WEBVIEW_CONTENT}")
+            endif()
+
+            file(WRITE "${JUCE_LINUX_WEBVIEW_CPP}" "${JUCE_LINUX_WEBVIEW_CONTENT}")
+            message(STATUS "Applied JUCE CommandReceiver UTF-8 fix (Linux WebView)")
         else()
-            message(STATUS "Applied JUCE CommandReceiver patch")
+            message(STATUS "JUCE CommandReceiver UTF-8 fix already present")
         endif()
-    elseif(NOT JUCE_PATCH_CHECK_RESULT EQUAL 1)
-        message(STATUS "JUCE patch already applied (skipping)")
     endif()
 endif()
 

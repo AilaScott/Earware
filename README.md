@@ -9,7 +9,7 @@ Pick your headphone model from a searchable library of **736 presets** and Earwa
 - **736 headphone presets** — over-ear, in-ear, and earbud models from oratory1990's measured database
 - **HTML/JS UI** — vector-drawn EQ curve display, searchable model dropdown, one-click bypass
 - **Bypass** toggle for A/B comparison of corrected vs. uncorrected audio
-- Plugin formats: **VST3**, **LV2**, **AU**, and **Standalone**
+- Plugin formats: **VST3** (Linux/Windows), **VST3 + AU** (macOS)
 
 ## Downloads
 
@@ -18,7 +18,7 @@ Pre-built binaries are available on the [Releases](https://github.com/AilaScott/
 | Platform | Formats | Artifacts |
 |----------|---------|-----------|
 | Linux x64 | VST3 | `Earware_Linux_x64_VST3.zip` |
-| Windows x64 | VST3, Standalone | `Earware_Windows_x64_VST3.zip`, `Earware_Windows_x64_Standalone.zip` |
+| Windows x64 | VST3 | `Earware_Windows_x64_VST3.zip` |
 | macOS (Universal) | VST3, AU | `Earware_macOS_Universal_VST3.zip`, `Earware_macOS_Universal_AU.zip` |
 
 ## Platforms
@@ -27,9 +27,9 @@ Earware is developed **Linux-first**: the preferred/reference target and where i
 
 | Platform | Formats | Status |
 |----------|---------|--------|
-| Linux x64 | VST3, LV2, Standalone | Primary target — tested in Reaper |
-| Windows x64 | VST3, Standalone | Supported — tested in Reaper |
-| macOS (Universal) | VST3, AU, Standalone | Supported — not yet tested |
+| Linux x64 | VST3 | Primary target — tested in Reaper |
+| Windows x64 | VST3 | Supported — tested in Reaper |
+| macOS (Universal) | VST3, AU | Supported — not yet tested |
 
 ## Requirements
 
@@ -53,17 +53,16 @@ cmake --build build --config Release
 
 Build targets:
 
-- `Earware_VST3` — VST3 plugin
-- `Earware_Standalone` — standalone application (also built as `Earware_LV2` / `Earware_AU` where supported)
+- `Earware_VST3` — VST3 plugin (all platforms)
+- `Earware_AU` — AU plugin (macOS)
 - `earware_rendertest` — Linux-only headless render test
 
-The standalone app and VST3 share the same UI. On Windows, a WebView2 user-data folder is created under the system temp directory on first launch.
+The plugin UI is an embedded HTML/JS WebView. On Windows, a WebView2 user-data folder is created under the system temp directory on first launch.
 
 ## Installation
 
 - **VST3:** copy `Earware.vst3` to your VST3 directory (`~/.vst3/` on Linux, `%COMMONPROGRAMFILES%\VST3\` on Windows).
-- **LV2:** copy `Earware.lv2` to `~/.lv2/`.
-- **Standalone:** run the executable directly.
+- **AU (macOS):** copy `Earware.component` to `/Library/Audio/Plug-Ins/Components/`.
 
 See [plugins/Earware/Documentation/USER_MANUAL.md](plugins/Earware/Documentation/USER_MANUAL.md) for usage, and [plugins/Earware/Documentation/WINDOWS_BUILD.md](plugins/Earware/Documentation/WINDOWS_BUILD.md) for detailed Windows build notes.
 

@@ -4,12 +4,12 @@ Earware is a preset-based corrective EQ plugin that applies oratory1990 headphon
 
 ## Installation
 
-- **VST3:** Copy `Earware.vst3` to your VST3 directory (`~/.vst3/` on Linux).
-- **Standalone:** Run the `Earware` standalone executable directly.
+- **VST3:** Copy `Earware.vst3` to your VST3 directory (`~/.vst3/` on Linux, `%COMMONPROGRAMFILES%\VST3\` on Windows).
+- **AU (macOS):** Copy `Earware.component` to `/Library/Audio/Plug-Ins/Components/`.
 
 ## Quick Start
 
-1. Open Earware in your DAW or as a standalone application.
+1. Open Earware in your DAW.
 2. Click the dropdown at the top to search for your headphone model (736 models available across over-ear, in-ear, and earbud categories).
 3. Toggle **Bypass** to compare corrected vs. uncorrected audio.
 4. The EQ curve is displayed on the canvas — green line shows the correction applied.
@@ -31,9 +31,8 @@ The plugin loads these coefficients and applies them in series to flatten your h
 
 ## Format Support
 
-- VST3
-- LV2
-- Standalone (JACK/ALSA)
+- VST3 (Linux, Windows, macOS)
+- AU (macOS)
 
 ## Resources
 

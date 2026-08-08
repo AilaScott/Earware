@@ -35,11 +35,18 @@ EarwareAudioProcessorEditor::EarwareAudioProcessorEditor (EarwareAudioProcessor&
         *audioProcessor.apvts.getParameter ("bypass"), bypassRelay);
 
     juce::WebBrowserComponent::Options options{};
+
+   #if JUCE_WINDOWS
+    // WebView2 (Chromium) is only available on Windows; forcing it elsewhere is
+    // a no-op in JUCE 8 (Linux/macOS always use WebKit/WKWebView), so it must
+    // not be set for those platforms.
     options = options.withBackend (juce::WebBrowserComponent::Options::Backend::webview2)
                      .withWinWebView2Options (juce::WebBrowserComponent::Options::WinWebView2{}
                                                   .withUserDataFolder (juce::File::getSpecialLocation (juce::File::SpecialLocationType::tempDirectory)))
-                     .withNativeIntegrationEnabled()
-                     .withKeepPageLoadedWhenBrowserIsHidden()
+                     .withKeepPageLoadedWhenBrowserIsHidden();
+   #endif
+
+    options = options.withNativeIntegrationEnabled()
                      .withOptionsFrom (modelRelay)
                      .withOptionsFrom (bypassRelay);
 

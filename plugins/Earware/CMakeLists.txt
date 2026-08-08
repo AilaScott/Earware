@@ -6,18 +6,16 @@ cmake_minimum_required(VERSION 3.15)
 set(NEEDS_WEBVIEW2 FALSE)
 set(NEEDS_WEB_BROWSER FALSE)
 set(AU_MAIN_TYPE "")
-set(LV2_URI "")
 
 if(WIN32)
-    set(PLUGIN_FORMATS VST3 Standalone)
+    set(PLUGIN_FORMATS VST3)
     set(NEEDS_WEBVIEW2 TRUE)
 elseif(APPLE)
-    set(PLUGIN_FORMATS VST3 AU Standalone)
+    set(PLUGIN_FORMATS VST3 AU)
     set(AU_MAIN_TYPE kAudioUnitType_Effect)
 elseif(UNIX)
-    set(PLUGIN_FORMATS VST3 LV2 Standalone)
+    set(PLUGIN_FORMATS VST3)
     set(NEEDS_WEB_BROWSER TRUE)
-    set(LV2_URI "https://github.com/noizefield/audio-plugin-coder/Earware")
 else()
     message(FATAL_ERROR "Unsupported platform")
 endif()
@@ -46,7 +44,6 @@ juce_add_plugin(Earware
     NEEDS_WEB_BROWSER ${NEEDS_WEB_BROWSER}
     VST3_CATEGORIES Fx EQ
     AU_MAIN_TYPE ${AU_MAIN_TYPE}
-    LV2URI ${LV2_URI}
 )
 
 # ============================================
