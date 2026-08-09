@@ -1,12 +1,29 @@
 # Earware
 
-Earware is a preset-based corrective EQ that flattens your headphones toward a neutral target. Pick your model from a searchable library of **736 presets** from [oratory1990](https://github.com/jaakkopasanen/AutoEq)'s measured database, and Earware applies the matching correction — 10 biquad filters plus a preamp — while a live graph shows the EQ curve and a one-click **Bypass** lets you A/B against the uncorrected signal.
+Earware is a preset-based corrective EQ that flattens your headphones toward an uncolored target.  It was born out of frustration with bad gain staging and invasive DRM software in big-box corrective plugins, as well as my fatigue from manually inputting EQ values in every DAW I use on every system I use.
 
-![Earware plugin screenshot](docs/screenshot.png)
+Throw it on your master and pick your cans from a searchable library of **736 Headphone Models!**
+ 
+ EQ data is sourced [oratory1990](https://github.com/jaakkopasanen/AutoEq)'s measured database.  Earware applies the matching correction to both your EQ and it's subtracted gain, so you'll be listening at the same volume you started at.  The volume bypass lets you A/B against the uncorrected signal.
 
-> **macOS — we need your help.** The macOS VST3/AU build is new and not yet field-tested. Please try it in your DAW and [open an issue](https://github.com/AilaScott/Earware/issues/new), including which DAW you're using. Linux and Windows are tested in Reaper.
+ ![Earware plugin screenshot](docs/screenshot.png)
 
-## Get it
+
+
+
+
+
+ This project was built with some amazing open-source software, most notably **Noizefield's** awesome [audio-plugin-coder](https://github.com/Noizefield/audio-plugin-coder) repository, an extensive skillset and context management system for building JUCE plugins.  It was utilized in combination with [OpenCode](https://opencode.ai/) and DeepSeek's highly efficient v4 flash model.
+
+ 
+
+
+
+
+
+> **I need help!!!!** The macOS VST3/AU build is new and not yet field-tested.  Similarly, no DAWS have been tested extensively besides Reaper on any platform. Please try it in your DAW and [open an issue](https://github.com/AilaScott/Earware/issues/new), including which DAW/OS you're using.
+
+## For Musicians and Engineers!
 
 Download the build for your platform from the [Releases](https://github.com/AilaScott/Earware/releases) page:
 
@@ -23,7 +40,7 @@ To install, unzip and copy the plugin folder into your audio plugin directory:
 
 See the [user manual](plugins/Earware/Documentation/USER_MANUAL.md) for full usage.
 
-## For developers
+## For Devs
 
 Building from source requires **CMake ≥ 3.22**, a **C++20 compiler**, and the **JUCE 8.0.12** git submodule (a vendored JSON-length fix is applied at configure time — see `patches/`). Platform tooling: WebKitGTK/GTK3/Jack/ALSA on Linux, Visual Studio 2022 + the WebView2 SDK (resolved via NuGet) on Windows, and the system WKWebView on macOS.
 
