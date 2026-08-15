@@ -5,8 +5,23 @@
   "ui_framework": "webview",
   "complexity_score": 2,
   "created_at": "2026-07-30T19:44:48Z",
-  "last_modified": "2026-08-04T12:30:00Z",
+  "last_modified": "2026-08-14T01:00:00Z",
   "phase_history": [
+    {
+      "phase": "bugfix_dropdown_click_select",
+      "completed_at": "2026-08-14T01:00:00Z",
+      "notes": "Fixed 'selecting a model does not update the EQ curve' (regression from the custom dropdown). Root cause: on item mousedown the input blurred and the blur handler closed the panel (display:none) before mouseup, so WebKitGTK/WebView2 both suppressed the item click event -> selectModel never ran -> input stayed empty and no curve appeared. Fixed by selecting on pointerdown (fires before blur) with a primary-button guard. Verified with a WebKitWebDriver harness that loads the real production modules (js/index.js, js/juce/*) behind a faithful __JUCE__ stub: real click selects the model, valueChanged reaches the backend, curve draws and overlay hides; 7/7 dropdown tests pass including a new real-click regression test. Also hardened: without a delivered propertiesChanged (hidden-at-construction editor) the emitted value stays in [0,1] and C++ clamps to index 0 - flagged as latent, not user-facing."
+    },
+    {
+      "phase": "ui_custom_dropdown_no_default",
+      "completed_at": "2026-08-14T00:00:00Z",
+      "notes": "Replaced native <datalist> with a custom CSS dropdown (dropdown-panel/dropdown-item classes) so the list renders identically across WebView2/WebKitGTK/WKWebView and matches the neubrutalism palette. List autopopulates on focus/click; type-to-filter (prefix-priority, 200-item render cap), keyboard nav (up/down/home/end/enter/esc), hover/click select, blur + outside-click close. Added generator-synthesized 'No Model Selected' neutral entry at index 0 (preamp 0 + 10 unity PK stages) so the plugin applies no correction until a headphone is chosen; dataset now 6034 entries. JS MODEL_COUNT-derived normalisation already in place. Saved-state indices shift +1 (final reorder)."
+    },
+    {
+      "phase": "data_recommended_results",
+      "completed_at": "2026-08-14T00:00:00Z",
+      "notes": "Replaced oratory1990-only dataset with AutoEq 'Recommended Results' (results/README.md): 736 -> 6033 models, one highest-accuracy measurement per headphone. generate_data.py now parses the recommended list, pads sub-10-filter profiles with unity PK stages, and tolerates stale case in upstream links. Verified 733/736 shared models byte-identical; 3 replaced by higher-accuracy sources (Bose QC20 x2 -> Innerfidelity, CX 400BT -> Rtings). ATH-M30 added (crinacle EARS+711, index 629). JS MODEL_COUNT magic number removed (derived from init data). Caveat: saved sessions store model as index, so old states may remap post-reorder."
+    },
     {
       "phase": "ideation",
       "completed_at": "2026-07-30T19:44:48Z",

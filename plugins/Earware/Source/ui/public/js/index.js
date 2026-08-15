@@ -1,7 +1,5 @@
 import { getSliderState, getToggleState } from './juce/index.js';
 
-const MODEL_COUNT = 736;
-
 let modelState = getSliderState('model');
 let bypassState = getToggleState('bypass');
 let modelNames = [];
@@ -9,8 +7,14 @@ let curveData = null;
 let lastSelectedIndex = -1;
 let ignoreNextInput = false;
 
+let panelOpen = false;
+let filteredIndices = [];
+let highlightPosition = -1;
+
+const MAX_ITEMS = 200;
+
 const modelInput = document.getElementById('modelInput');
-const modelList = document.getElementById('modelList');
+const modelPanel = document.getElementById('modelPanel');
 const bypassBtn = document.getElementById('bypassBtn');
 const eqCanvas = document.getElementById('eqCanvas');
 const modelStatus = document.getElementById('modelStatus');
@@ -19,20 +23,101 @@ const noCurveOverlay = document.getElementById('noCurveOverlay');
 
 function initModelList(names) {
   modelNames = names;
-  modelList.innerHTML = '';
-  names.forEach(name => {
-    const opt = document.createElement('option');
-    opt.value = name;
-    modelList.appendChild(opt);
+}
+
+function renderPanel() {
+  const fragment = document.createDocumentFragment();
+  const shown = filteredIndices.slice(0, MAX_ITEMS);
+
+  if (shown.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'dropdown-item is-empty';
+    empty.textContent = 'No matches found';
+    fragment.appendChild(empty);
+  } else {
+    shown.forEach((index, pos) => {
+      const item = document.createElement('div');
+      item.className = 'dropdown-item' + (pos === highlightPosition ? ' is-highlighted' : '');
+      item.textContent = modelNames[index];
+      item.dataset.index = index;
+
+      item.addEventListener('mouseenter', () => {
+        if (highlightPosition !== pos) {
+          highlightPosition = pos;
+          updateHighlight();
+        }
+      });
+      item.addEventListener('pointerdown', (e) => {
+        if (e.button === 0) selectModel(index);
+      });
+
+      fragment.appendChild(item);
+    });
+  }
+
+  modelPanel.innerHTML = '';
+  modelPanel.appendChild(fragment);
+}
+
+function updateHighlight() {
+  const items = modelPanel.querySelectorAll('.dropdown-item');
+  items.forEach((item, pos) => {
+    const on = pos === highlightPosition;
+    item.classList.toggle('is-highlighted', on);
+    if (on) item.scrollIntoView({ block: 'nearest' });
   });
+}
+
+function openPanel() {
+  panelOpen = true;
+  modelPanel.classList.add('is-open');
+  const pos = lastSelectedIndex >= 0 ? filteredIndices.indexOf(lastSelectedIndex) : -1;
+  highlightPosition = pos >= 0 ? pos : 0;
+  renderPanel();
+}
+
+function closePanel() {
+  panelOpen = false;
+  modelPanel.classList.remove('is-open');
+}
+
+function applyFilter() {
+  const query = modelInput.value.trim().toLowerCase();
+  const indices = [];
+  if (query.length === 0) {
+    for (let i = 0; i < modelNames.length; i++) indices.push(i);
+  } else {
+    const prefix = [];
+    const contains = [];
+    for (let i = 0; i < modelNames.length; i++) {
+      const name = modelNames[i].toLowerCase();
+      if (name.startsWith(query)) prefix.push(i);
+      else if (name.includes(query)) contains.push(i);
+    }
+    indices.push(...prefix, ...contains);
+  }
+  filteredIndices = indices;
+}
+
+function selectModel(index) {
+  if (index < 0 || index >= modelNames.length) return;
+  lastSelectedIndex = index;
+  const norm = modelNames.length > 1 ? index / (modelNames.length - 1) : 0;
+  modelState.setNormalisedValue(norm);
+  updateModelUI(index);
+  closePanel();
 }
 
 function updateModelUI(index) {
   if (index < 0 || index >= modelNames.length) return;
   lastSelectedIndex = index;
-  const name = modelNames[index];
-  modelInput.value = name;
-  modelStatus.textContent = name;
+  if (index === 0) {
+    modelInput.value = '';
+    modelStatus.textContent = 'No model selected';
+  } else {
+    modelInput.value = modelNames[index];
+    modelStatus.textContent = modelNames[index];
+  }
 }
 
 function updateBypassUI(bypassed) {
@@ -46,7 +131,7 @@ bypassState.valueChangedEvent.addListener(() => {
 
 modelState.valueChangedEvent.addListener(() => {
   const norm = modelState.getNormalisedValue();
-  const index = Math.round(norm * (MODEL_COUNT - 1));
+  const index = Math.round(norm * (modelNames.length - 1));
   if (index !== lastSelectedIndex && index >= 0 && index < modelNames.length) {
     updateModelUI(index);
     lastSelectedIndex = index;
@@ -59,6 +144,8 @@ bypassBtn.addEventListener('click', () => {
 
 modelInput.addEventListener('focus', () => {
   modelInput.select();
+  applyFilter();
+  openPanel();
 });
 
 modelInput.addEventListener('input', () => {
@@ -71,17 +158,63 @@ modelInput.addEventListener('input', () => {
   const index = modelNames.indexOf(val);
   if (index !== -1) {
     lastSelectedIndex = index;
-    const norm = MODEL_COUNT > 1 ? index / (MODEL_COUNT - 1) : 0;
+    const norm = modelNames.length > 1 ? index / (modelNames.length - 1) : 0;
     modelState.setNormalisedValue(norm);
-    modelStatus.textContent = val;
+    modelStatus.textContent = index === 0 ? 'No model selected' : val;
+    applyFilter();
+  } else {
+    applyFilter();
+  }
+
+  if (!panelOpen) openPanel();
+  else renderPanel();
+});
+
+modelInput.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Home' || e.key === 'End') {
+    e.preventDefault();
+    if (!panelOpen) {
+      applyFilter();
+      openPanel();
+      return;
+    }
+    const count = filteredIndices.slice(0, MAX_ITEMS).length;
+    if (count === 0) return;
+    if (e.key === 'ArrowDown') highlightPosition = Math.min(highlightPosition + 1, count - 1);
+    else if (e.key === 'ArrowUp') highlightPosition = Math.max(highlightPosition - 1, 0);
+    else if (e.key === 'Home') highlightPosition = 0;
+    else highlightPosition = count - 1;
+    updateHighlight();
+  } else if (e.key === 'Enter') {
+    if (panelOpen && highlightPosition >= 0 && highlightPosition < filteredIndices.length) {
+      e.preventDefault();
+      selectModel(filteredIndices[highlightPosition]);
+    } else {
+      const index = modelNames.indexOf(modelInput.value);
+      if (index !== -1) selectModel(index);
+    }
+  } else if (e.key === 'Escape') {
+    closePanel();
+    if (lastSelectedIndex === 0) modelInput.value = '';
+    else if (lastSelectedIndex >= 0) modelInput.value = modelNames[lastSelectedIndex];
+  } else if (e.key === 'Tab') {
+    closePanel();
   }
 });
 
 modelInput.addEventListener('blur', () => {
-  if (lastSelectedIndex >= 0 && lastSelectedIndex < modelNames.length) {
+  closePanel();
+  if (lastSelectedIndex === 0) {
+    ignoreNextInput = true;
+    modelInput.value = '';
+  } else if (lastSelectedIndex >= 0 && lastSelectedIndex < modelNames.length) {
     ignoreNextInput = true;
     modelInput.value = modelNames[lastSelectedIndex];
   }
+});
+
+document.addEventListener('mousedown', (e) => {
+  if (panelOpen && !e.target.closest('.dropdown-wrap')) closePanel();
 });
 
 function drawCurve() {
@@ -143,7 +276,7 @@ function drawCurve() {
     }
   });
 
-  if (curveData && curveData.length > 0) {
+  if (curveData && curveData.length > 0 && lastSelectedIndex !== 0) {
     noCurveOverlay.style.opacity = '0';
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2.5;

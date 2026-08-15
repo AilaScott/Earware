@@ -55,14 +55,16 @@ dropdown. High contrast, flat, unapologetically bold.
 
 ### 3. Model Selector (Searchable Dropdown)
 - **Position:** Below header, full-width
-- **Component:** HTML `<input>` with `<datalist>` for 736-model autocomplete
+- **Component:** Custom HTML dropdown (styled `div` panel — no native `<datalist>`/`<select>` chrome, so it renders identically across WebView2/WebKitGTK/WKWebView)
 - **Size:** Full width with 20px horizontal margin, 40px tall
 - **Background:** `#0066ff` (bright blue)
 - **Text:** White (`#ffffff`), 14px, bold
 - **Border:** 3px solid `#000000` (hard black border)
 - **Placeholder:** "Select headphone model..."
 - **Dropdown Arrow:** Custom black arrow, right-aligned
-- **Interaction:** Typing filters results in real-time, clicking shows full list
+- **Panel:** White (`#ffffff`), 3px solid black border, max-height 220px with custom scrollbar, option items 13px/400 with blue hover/selection (`#0066ff` bg, white text)
+- **Interaction:** Clicking/focusing autopopulates the full model list; typing filters in real time (prefix matches first); keyboard ↑/↓/Home/End/Enter/Esc supported; blur/outside-click closes and restores the selection
+- **Default state:** No model selected — the input is empty with the placeholder visible, no correction is applied, and the EQ card shows "Select a model to view EQ curve" until a headphone is chosen (index 0 = "No Model Selected" neutral entry)
 
 ### 4. EQ Curve Card
 - **Position:** Center section, below model selector
@@ -111,7 +113,7 @@ dropdown. High contrast, flat, unapologetically bold.
 - **Font Family:** system-ui, -apple-system, 'Segoe UI', sans-serif
 - **Plugin Title:** 22px, 800 weight (bold), uppercase
 - **Dropdown Text:** 14px, 700 weight
-- **Dropdown Options:** 13px, 400 weight
+- **Dropdown Options:** 13px, 400 weight (white panel, black text; blue bg on hover/select)
 - **Status Text:** 12px, 500 weight
 - **Bypass Button:** 11px, 700 weight, uppercase
 

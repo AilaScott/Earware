@@ -2,9 +2,9 @@
 
 Earware is a preset-based corrective EQ that flattens your headphones toward an uncolored target.  It was born out of frustration with bad gain staging and invasive DRM software in big-box corrective plugins, as well as my fatigue from manually inputting EQ values in every DAW I use on every system I use.
 
-Throw it on your master and pick your cans from a searchable library of **736 Headphone Models!**
+Throw it on your master and pick your cans from a searchable library of **6033 Headphone Models!**  No correction is applied until you choose your headphones.
  
- EQ data is sourced [oratory1990](https://github.com/jaakkopasanen/AutoEq)'s measured database.  Earware applies the matching correction to both your EQ and it's subtracted gain, so you'll be listening at the same volume you started at.  The volume bypass lets you A/B against the uncorrected signal.
+ EQ data is sourced from [AutoEq](https://github.com/jaakkopasanen/AutoEq)'s recommended results — the highest-accuracy correction measurement available for each headphone.  Earware applies the matching correction to both your EQ and it's subtracted gain, so you'll be listening at the same volume you started at.  The volume bypass lets you A/B against the uncorrected signal.
 
  ![Earware plugin screenshot](docs/screenshot.png)
 
@@ -58,4 +58,4 @@ Details: [Windows build notes](plugins/Earware/Documentation/WINDOWS_BUILD.md) a
 
 ## License
 
-GPL-3.0. Uses [JUCE](https://juce.com) (GPL-3.0) and headphone data from [oratory1990/AutoEq](https://github.com/jaakkopasanen/AutoEq).
+GPL-3.0. Uses [JUCE](https://juce.com) (GPL-3.0) and headphone data from [jaakkopasanen/AutoEq](https://github.com/jaakkopasanen/AutoEq)'s recommended results.

@@ -19,6 +19,9 @@ CMakeFiles/
 # Packaging
 dist/
 
+# Dev-only dataset clone (AutoEq results, used by generate_data.py)
+_tools/AutoEq/
+
 # System
 .DS_Store
 Thumbs.db

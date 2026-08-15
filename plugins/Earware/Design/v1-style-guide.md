@@ -241,7 +241,59 @@
   pointer-events: none;
 }
 
-/* Datalist options styling (limited, browser-dependent) */
+/* Custom dropdown panel — replaces native <datalist> so it renders
+   identically across WebView2, WebKitGTK, and WKWebView. */
+.dropdown-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  display: none;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--dropdown-option-bg);
+  border: 3px solid var(--dropdown-border);
+  cursor: pointer;
+}
+
+.dropdown-panel.is-open {
+  display: block;
+}
+
+.dropdown-item {
+  padding: 8px 16px;
+  font-size: var(--font-size-dropdown-option);
+  font-weight: var(--font-weight-normal);
+  color: var(--dropdown-option-text);
+  background: var(--dropdown-option-bg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dropdown-item:hover,
+.dropdown-item.is-highlighted {
+  background: var(--dropdown-option-hover);
+  color: var(--dropdown-option-hover-text);
+}
+
+.dropdown-item.is-empty {
+  color: var(--text-disabled);
+  cursor: default;
+}
+
+.dropdown-panel::-webkit-scrollbar {
+  width: 10px;
+}
+
+.dropdown-panel::-webkit-scrollbar-track {
+  background: var(--surface-white);
+}
+
+.dropdown-panel::-webkit-scrollbar-thumb {
+  background: var(--border-black);
+  border: 2px solid var(--surface-white);
+}
 ```
 
 ### EQ Curve Card

@@ -1,20 +1,32 @@
 #!/usr/bin/env python3
-"""Generate ParametricEQData.h/cpp from oratory1990 ParametricEQ.txt files."""
+"""Generate ParametricEQData.h/cpp from the AutoEq Recommended Results list.
+
+The AutoEq results/README.md ("Recommended Results") lists one measurement
+per headphone — the highest-accuracy one available — which replaces the
+original oratory1990-only dataset as Earware's default.
+"""
 
 import os
 import re
 import struct
 import sys
+from urllib.parse import unquote
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-ORATORY_DIR = os.path.join(BASE_DIR, '..', '..', 'oratory1990')
+AUTOEQ_DIR = os.path.join(BASE_DIR, '..', '..', '_tools', 'AutoEq')
+RESULTS_README = os.path.join(AUTOEQ_DIR, 'results', 'README.md')
 OUTPUT_H = os.path.join(BASE_DIR, 'Source', 'ParametricEQData.h')
 OUTPUT_CPP = os.path.join(BASE_DIR, 'Source', 'ParametricEQData.cpp')
 
 FILTER_RE = re.compile(
     r'Filter\s+\d+:\s+ON\s+(LSC|HSC|PK)\s+Fc\s+([\d.]+)\s+Hz\s+Gain\s+([-.\d]+)\s+dB\s+Q\s+([\d.]+)'
 )
+FILTER_OFF_RE = re.compile(r'Filter\s+\d+:\s+OFF')
 PREAMP_RE = re.compile(r'Preamp:\s+([-.\d]+)\s+dB')
+LINK_RE = re.compile(r'^- \[(.+)\]\(\./(.+)\)$')
+
+NUM_FILTERS = 10
+PAD_FILTER = ('PK', 1000.0, 0.0, 0.7071)
 
 entries = []
 errors = []
@@ -25,56 +37,82 @@ categories = {
     'earbud': 'Earbud',
 }
 
-for cat_name, cat_enum in categories.items():
-    cat_dir = os.path.join(ORATORY_DIR, cat_name)
-    if not os.path.isdir(cat_dir):
+
+def category_for_path(path):
+    lowered = path.lower()
+    for keyword, cat_enum in categories.items():
+        if keyword in lowered:
+            return cat_enum
+    return 'Other'
+
+
+with open(RESULTS_README, 'r') as f:
+    lines = f.read().splitlines()
+
+for line in lines:
+    m = LINK_RE.match(line)
+    if not m:
         continue
-    for model_name in sorted(os.listdir(cat_dir)):
-        model_dir = os.path.join(cat_dir, model_name)
-        if not os.path.isdir(model_dir):
+
+    name, rel_path = m.group(1), unquote(m.group(2))
+    model_dir = os.path.join(AUTOEQ_DIR, 'results', rel_path)
+    if not os.path.isdir(model_dir):
+        # AutoEq README links are occasionally stale in case (e.g. "(passive
+        # mode)" vs "(Passive mode)"), so fall back to a case-insensitive match.
+        parent, leaf = os.path.split(model_dir)
+        if os.path.isdir(parent):
+            for dir_name in os.listdir(parent):
+                if dir_name.lower() == leaf.lower():
+                    model_dir = os.path.join(parent, dir_name)
+                    break
+    if not os.path.isdir(model_dir):
+        errors.append(f'{model_dir}: recommended model directory missing')
+        continue
+
+    eq_files = [fn for fn in os.listdir(model_dir) if fn.endswith(' ParametricEQ.txt')]
+    if not eq_files:
+        errors.append(f'{model_dir}: no ParametricEQ.txt file found')
+        continue
+    eq_files.sort(key=lambda fn: 0 if fn == f'{name} ParametricEQ.txt' else 1)
+    txt_path = os.path.join(model_dir, eq_files[0])
+
+    with open(txt_path, 'r') as f:
+        content = f.read().splitlines()
+
+    preamp = None
+    filters = []
+    for line in filter(None, content):
+        preamp_match = PREAMP_RE.match(line)
+        if preamp_match and preamp is None:
+            preamp = float(preamp_match.group(1))
             continue
-        txt_path = os.path.join(model_dir, f'{model_name} ParametricEQ.txt')
-        if not os.path.isfile(txt_path):
+        if FILTER_OFF_RE.match(line):
             continue
+        flt_match = FILTER_RE.match(line)
+        if flt_match:
+            filters.append((
+                flt_match.group(1),
+                float(flt_match.group(2)),
+                float(flt_match.group(3)),
+                float(flt_match.group(4)),
+            ))
 
-        with open(txt_path, 'r') as f:
-            lines = f.readlines()
+    if preamp is None:
+        errors.append(f'{txt_path}: could not parse preamp line')
+        continue
+    if len(filters) > NUM_FILTERS:
+        errors.append(f'{txt_path}: {len(filters)} filters exceed schema capacity')
+        continue
 
-        if len(lines) < 11:
-            errors.append(f'{txt_path}: expected 11 lines, got {len(lines)}')
-            continue
+    while len(filters) < NUM_FILTERS:
+        filters.append(PAD_FILTER)
 
-        preamp_match = PREAMP_RE.match(lines[0].strip())
-        if not preamp_match:
-            errors.append(f'{txt_path}: could not parse preamp line')
-            continue
-
-        preamp = float(preamp_match.group(1))
-        filters = []
-
-        for i in range(1, 11):
-            line = lines[i].strip()
-            m = FILTER_RE.match(line)
-            if not m:
-                errors.append(f'{txt_path}: could not parse filter {i}: {line}')
-                continue
-
-            ftype = m.group(1)
-            freq = float(m.group(2))
-            gain = float(m.group(3))
-            q = float(m.group(4))
-            filters.append((ftype, freq, gain, q))
-
-        if len(filters) != 10:
-            errors.append(f'{txt_path}: expected 10 filters, got {len(filters)}')
-            continue
-
-        entries.append({
-            'name': model_name,
-            'category': cat_enum,
-            'preamp': preamp,
-            'filters': filters,
-        })
+    entries.append({
+        'name': name,
+        'category': category_for_path(rel_path),
+        'preamp': preamp,
+        'filters': filters,
+    })
 
 if errors:
     for e in errors:
@@ -82,8 +120,18 @@ if errors:
     print(f'\n{len(errors)} errors, {len(entries)} entries parsed', file=sys.stderr)
     sys.exit(1)
 
+# "No Model Selected" — neutral placeholder at index 0 so the plugin applies
+# no correction until the user picks a headphone. Unity preamp + 10 unity PK
+# stages is exactly transparent in the DSP chain.
+entries.insert(0, {
+    'name': 'No Model Selected',
+    'category': 'Other',
+    'preamp': 0.0,
+    'filters': [PAD_FILTER] * NUM_FILTERS,
+})
+
 total_models = len(entries)
-print(f'Parsed {total_models} models successfully')
+print(f'Parsed {total_models} entries (1 placeholder + {total_models - 1} models)')
 
 FLOAT_FMT = '<f'
 UBYTE_FMT = '<B'
@@ -91,7 +139,7 @@ PACK_FLOAT = lambda x: struct.pack(FLOAT_FMT, x)
 
 TYPE_MAP = {'PK': 0, 'LSC': 1, 'HSC': 2}
 
-MODEL_ENTRY_SIZE = 4 + 10 * (1 + 4 + 4 + 4)  # preamp(float) + 10*(type(byte)+freq+gain+q)
+MODEL_ENTRY_SIZE = 4 + NUM_FILTERS * (1 + 4 + 4 + 4)  # preamp(float) + 10*(type(byte)+freq+gain+q)
 BLOB_SIZE = total_models * MODEL_ENTRY_SIZE
 
 type_chars = []
@@ -111,8 +159,8 @@ for e in entries:
 blob = bytearray()
 for i in range(total_models):
     blob.extend(PACK_FLOAT(preamp_floats[i]))
-    base = i * 10
-    for j in range(10):
+    base = i * NUM_FILTERS
+    for j in range(NUM_FILTERS):
         blob.extend(struct.pack(UBYTE_FMT, type_chars[base + j]))
         blob.extend(PACK_FLOAT(freq_floats[base + j]))
         blob.extend(PACK_FLOAT(gain_floats[base + j]))
@@ -147,7 +195,8 @@ for i, e in enumerate(entries):
     cat = e['category']
     if cat not in cats_found:
         cats_found[cat] = i
-        category_indices_lines.append(f'const int earware{cat}Start = {i};')
+        if cat != 'Other':
+            category_indices_lines.append(f'const int earware{cat}Start = {i};')
 category_indices_lines.append(f'const int earwareNumModels = {total_models};')
 
 with open(OUTPUT_H, 'w') as f:
@@ -175,9 +224,9 @@ struct EarwareEqPreset {
 
 ''')
     f.write(f'extern const int earwareNumModels;\n')
-    for cat_name in ['OverEar', 'InEar', 'Earbud']:
-        if f'{cat_name}Start' in globals() or any(f'earware{cat_name}Start' in line for line in category_indices_lines):
-            f.write(f'extern const int earware{cat_name}Start;\n')
+    for cat in ['OverEar', 'InEar', 'Earbud']:
+        if f'earware{cat}Start' in '\n'.join(category_indices_lines):
+            f.write(f'extern const int earware{cat}Start;\n')
     f.write('\n')
     f.write('const EarwareEqPreset* earwareGetPreset(int index);\n')
     f.write('const char* earwareGetModelName(int index);\n')

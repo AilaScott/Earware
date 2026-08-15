@@ -22,6 +22,11 @@
   --bypass-off-bg: #ffffff;
   --dropdown-text: #ffffff;
   --dropdown-placeholder: rgba(255,255,255,0.6);
+  --dropdown-option-bg: #ffffff;
+  --dropdown-option-text: #000000;
+  --dropdown-option-hover: #0066ff;
+  --dropdown-option-hover-text: #ffffff;
+  --dropdown-border: #000000;
   --font-primary: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --window-padding: 20px;
 }
@@ -97,6 +102,7 @@ html, body {
 .dropdown-wrap {
   margin: 8px var(--window-padding) 0;
   position: relative;
+  z-index: 20;
 }
 
 .dropdown-input {
@@ -131,6 +137,53 @@ html, body {
   border-right: 6px solid transparent;
   border-top: 8px solid #000000;
   pointer-events: none;
+}
+
+.dropdown-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  display: none;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--dropdown-option-bg);
+  border: 3px solid var(--dropdown-border);
+  cursor: pointer;
+}
+
+.dropdown-panel.is-open {
+  display: block;
+}
+
+.dropdown-item {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--dropdown-option-text);
+  background: var(--dropdown-option-bg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dropdown-item:hover,
+.dropdown-item.is-highlighted {
+  background: var(--dropdown-option-hover);
+  color: var(--dropdown-option-hover-text);
+}
+
+.dropdown-panel::-webkit-scrollbar {
+  width: 10px;
+}
+
+.dropdown-panel::-webkit-scrollbar-track {
+  background: var(--surface-white);
+}
+
+.dropdown-panel::-webkit-scrollbar-thumb {
+  background: var(--border-black);
+  border: 2px solid var(--surface-white);
 }
 
 .eq-card {
@@ -182,11 +235,11 @@ html, body {
 </div>
 
 <div class="dropdown-wrap">
-  <input class="dropdown-input" id="modelInput" type="text" list="modelList"
+  <input class="dropdown-input" id="modelInput" type="text"
          placeholder="Select headphone model..."
          autocomplete="off" spellcheck="false">
-  <datalist id="modelList"></datalist>
   <span class="dropdown-arrow"></span>
+  <div class="dropdown-panel" id="modelPanel"></div>
 </div>
 
 <div class="eq-card">
