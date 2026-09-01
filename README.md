@@ -4,7 +4,7 @@ Earware is a preset-based corrective EQ that flattens your headphones toward an 
 
 Throw it on your master and pick your cans from a searchable library of **6033 Headphone Models!**  No correction is applied until you choose your headphones.
  
- EQ data is sourced from [AutoEq](https://github.com/jaakkopasanen/AutoEq)'s recommended results — the highest-accuracy correction measurement available for each headphone.  Earware applies the matching correction to both your EQ and it's subtracted gain, so you'll be listening at the same volume you started at.  The volume bypass lets you A/B against the uncorrected signal.
+ EQ data is sourced from [AutoEq](https://github.com/jaakkopasanen/AutoEq)'s recommended results — the highest-accuracy correction measurement available for each headphone.  Earware applies the matching correction to both your EQ and it's subtracted gain, so you'll be listening at the same volume you started at.  The bypass lets you A/B against the uncorrected signal.
 
  ![Earware plugin screenshot](docs/screenshot.png)
 
