@@ -3,6 +3,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 #include "ParametricEQData.h"
+#include "LinearPhaseFIR.h"
 
 class EarwareAudioProcessor : public juce::AudioProcessor
 {
@@ -44,13 +45,16 @@ public:
 private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
-    juce::dsp::Gain<float> preampGain;
-    std::array<juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>, juce::dsp::IIR::Coefficients<float>>, 10> filters;
+    juce::dsp::Convolution convolution;
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> bypassRamp;
     juce::AudioBuffer<float> dryBuffer;
+    juce::AudioBuffer<float> dryDelayBuffer;
+    juce::AudioBuffer<float> irBuffer;
 
     double currentSampleRate = 44100.0;
     int loadedModelIndex = -1;
+    int convLatency = 0;
+    int dryDelayWritePos = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EarwareAudioProcessor)
 };

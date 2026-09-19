@@ -35,15 +35,15 @@ void EarwareAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     spec.maximumBlockSize = (juce::uint32) samplesPerBlock;
     spec.numChannels = 2;
 
-    preampGain.prepare (spec);
-    preampGain.setRampDurationSeconds (0.01);
-
-    for (auto& f : filters)
-        f.prepare (spec);
+    convolution.prepare (spec);
 
     bypassRamp.reset (sampleRate, 0.005);
 
-    dryBuffer.setSize (juce::jmax (getTotalNumInputChannels(), getTotalNumOutputChannels()), samplesPerBlock, false, false, true);
+    const int numCh = juce::jmax (getTotalNumInputChannels(), getTotalNumOutputChannels());
+    dryBuffer.setSize (numCh, samplesPerBlock, false, false, true);
+    dryDelayBuffer.setSize (numCh, 8192, false, false, true);
+    irBuffer.setSize (1, LinearPhaseFIR::irLength, false, false, false);
+    dryDelayWritePos = 0;
 
     loadedModelIndex = -1;
 
@@ -88,57 +88,52 @@ void EarwareAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
         auto* preset = earwareGetPreset (modelIdx);
         if (preset != nullptr)
         {
-            preampGain.setGainDecibels (preset->preampGain);
+            LinearPhaseFIR::compute (preset, currentSampleRate, irBuffer.getWritePointer (0));
 
-            for (int f = 0; f < 10; ++f)
-            {
-                auto& stage = preset->filters[f];
-                using Coeffs = juce::dsp::IIR::Coefficients<float>;
-                Coeffs::Ptr newCoeffs;
-                const float gainLinear = juce::Decibels::decibelsToGain (stage.gain);
+            juce::AudioBuffer<float> irCopy (1, LinearPhaseFIR::irLength);
+            irCopy.copyFrom (0, 0, irBuffer, 0, 0, LinearPhaseFIR::irLength);
 
-                switch (stage.type)
-                {
-                    case EarwareFilterPK:
-                        newCoeffs = Coeffs::makePeakFilter (
-                            currentSampleRate, stage.freq, stage.q, gainLinear);
-                        break;
-                    case EarwareFilterLSC:
-                        newCoeffs = Coeffs::makeLowShelf (
-                            currentSampleRate, stage.freq, stage.q, gainLinear);
-                        break;
-                    case EarwareFilterHSC:
-                        newCoeffs = Coeffs::makeHighShelf (
-                            currentSampleRate, stage.freq, stage.q, gainLinear);
-                        break;
-                }
-
-                *filters[f].state = *newCoeffs;
-            }
+            convolution.loadImpulseResponse (std::move (irCopy), currentSampleRate,
+                                             juce::dsp::Convolution::Stereo::yes,
+                                             juce::dsp::Convolution::Trim::no,
+                                             juce::dsp::Convolution::Normalise::no);
+            convLatency = LinearPhaseFIR::irLength / 2;
+            setLatencySamples (convLatency);
 
             loadedModelIndex = modelIdx;
         }
     }
-
-    bypassRamp.setTargetValue (bypassed ? 0.0f : 1.0f);
 
     const bool transitioning = bypassRamp.isSmoothing();
     const auto numSamples = buffer.getNumSamples();
 
     if (transitioning)
     {
+        const int ringSize = dryDelayBuffer.getNumSamples();
+
         for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
-            dryBuffer.copyFrom (ch, 0, buffer, ch, 0, numSamples);
+        {
+            const float* inPtr = buffer.getReadPointer (ch, 0);
+            float* ringPtr = dryDelayBuffer.getWritePointer (ch, 0);
+
+            for (int s = 0; s < numSamples; ++s)
+                ringPtr[(dryDelayWritePos + s) % ringSize] = inPtr[s];
+
+            const int readPos = (dryDelayWritePos + numSamples - convLatency + ringSize * 2) % ringSize;
+            float* dryPtr = dryBuffer.getWritePointer (ch, 0);
+            for (int s = 0; s < numSamples; ++s)
+                dryPtr[s] = ringPtr[(readPos + s) % ringSize];
+        }
+
+        dryDelayWritePos = (dryDelayWritePos + numSamples) % ringSize;
     }
+
+    bypassRamp.setTargetValue (bypassed ? 0.0f : 1.0f);
 
     if (! bypassed || transitioning)
     {
-        auto preampBlock = juce::dsp::AudioBlock<float> (buffer);
-        preampGain.process (juce::dsp::ProcessContextReplacing<float> (preampBlock));
-
-        auto filterBlock = juce::dsp::AudioBlock<float> (buffer);
-        for (auto& f : filters)
-            f.process (juce::dsp::ProcessContextReplacing<float> (filterBlock));
+        auto wetBlock = juce::dsp::AudioBlock<float> (buffer);
+        convolution.process (juce::dsp::ProcessContextReplacing<float> (wetBlock));
     }
 
     if (transitioning)
@@ -148,7 +143,8 @@ void EarwareAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
         {
             auto rampVal = bypassRamp.getNextValue();
             for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
-                channelData[ch][s] = channelData[ch][s] * rampVal + dryBuffer.getReadPointer (ch)[s] * (1.0f - rampVal);
+                channelData[ch][s] = channelData[ch][s] * rampVal
+                                   + dryBuffer.getReadPointer (ch)[s] * (1.0f - rampVal);
         }
     }
 }

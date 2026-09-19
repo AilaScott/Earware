@@ -82,7 +82,7 @@ function closePanel() {
 }
 
 function applyFilter() {
-  const query = modelInput.value.trim().toLowerCase();
+  const query = modelInput.value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
   const indices = [];
   if (query.length === 0) {
     for (let i = 0; i < modelNames.length; i++) indices.push(i);
@@ -90,7 +90,7 @@ function applyFilter() {
     const prefix = [];
     const contains = [];
     for (let i = 0; i < modelNames.length; i++) {
-      const name = modelNames[i].toLowerCase();
+      const name = modelNames[i].toLowerCase().replace(/[^a-z0-9]/g, '');
       if (name.startsWith(query)) prefix.push(i);
       else if (name.includes(query)) contains.push(i);
     }
