@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to also upload artifacts to (e.g. v0.1.0)"
+        description: "Release tag to also upload artifacts to (e.g. v0.4.1)"
         required: false
         type: string
 

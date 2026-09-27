@@ -54,19 +54,19 @@ Preamp gain is baked into the FIR DC gain normalization (audio path) but **not**
 
 ## Render test suite (`earware_rendertest`)
 
-Deterministic (seeded `juce::Random(12345)`). 7 categories:
+Linux-only target (`if(UNIX AND NOT APPLE)` in `plugins/Earware/CMakeLists.txt`). Pink-noise generation in `testOutputLevelMatch` uses a seeded `juce::Random(12345)`; all other tests are deterministic by construction. 7 categories:
 
-| Test | What it verifies | Threshold |
-|------|-----------------|-----------|
-| Magnitude Accuracy | FIR vs analytical IIR response at 5 frequencies across 4 models | ≤ 0.5 dB |
-| Output Level Match | FIR vs IIR time-domain RMS on pink noise, 3 models | ≤ 0.1 dB |
-| DC Gain | FIR tap sum equals `preamp × ∏ biquadDCGains` | exact |
-| IR Symmetry | `ir[i] == ir[N-1-i]` (linear phase) | exact |
-| Group Delay | Measured GD equals N/2 (1024 samples) | ≤ 0.05 samples |
-| Phase Linearity | Unwrapped phase vs linear fit | ≤ 0.001 rad |
-| Latency | `getLatencySamples()` == 1024 | exact |
+| Test | What it verifies | Pass criterion (from `RenderTest.cpp`) |
+|------|-----------------|----------------------------------------|
+| Magnitude Accuracy | FIR vs analytical IIR response across 256 log-spaced frequencies (20 Hz → 0.49·sr), 4 models; skips bins where IIR < −30 dB | `maxErr < 1.0 dB` (L350) |
+| Output Level Match | FIR vs IIR time-domain RMS on seeded pink noise, 3 models (0, 226, 630) | `diff < 0.1 dB` (L434) |
+| DC Gain | FIR tap sum equals `preamp × ∏ biquadDCGains` | `err < 0.01` (L507) |
+| IR Symmetry | `ir[center−k] == ir[center+k]` about N/2 (linear phase) | `maxErr < 0.001` (L545) |
+| Group Delay | Spot-check via phase derivative at 1 kHz vs N/2 (1024) | `deviation < 1.0 samples` (L592) |
+| Phase Linearity | Unwrapped phase vs `−ω·N/2` across 63 frequencies (100 Hz → 0.45·sr), 4 models | `maxPhaseError < 0.2 rad` (L644) |
+| Latency | `getLatencySamples()` after model load | `latency > 0` (L672) — prints 1024 but does not assert it |
 
-Test models: 0 (flat), 1, 226 (K240 Studio), 630.
+Test models: 0 (flat), 1, 226 (AKG K240 Studio), 630 (Audio-Technica ATH-M30).
 
 ### Reference implementations in RenderTest.cpp
 
@@ -74,6 +74,8 @@ Test models: 0 (flat), 1, 226 (K240 Studio), 630.
 - `iirProcessReference()` — time-domain TDF-II IIR processing using JUCE coefficients (5 normalized values per biquad after `assignImpl` strips a0).
 - `firMagnitudeDB()` — magnitude from FIR IR via DFT.
 - `iirMagnitudeDB()` — product of `iirBiquadResponse` across all stages + preamp.
+
+`main()` also runs `directIIRTest()` (coefficient sanity dump) plus 5 render cases that write WAVs to the temp directory (`juce::File::tempDirectory`) before invoking the 7 test categories.
 
 ## UI / WebView
 
@@ -89,6 +91,7 @@ Test models: 0 (flat), 1, 226 (K240 Studio), 630.
 ```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release --target Earware_VST3
+# Linux only — the earware_rendertest target is guarded by if(UNIX AND NOT APPLE):
 cmake --build build --config Release --target earware_rendertest
 ./build/plugins/Earware/earware_rendertest
 ```

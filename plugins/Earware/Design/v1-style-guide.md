@@ -46,7 +46,8 @@
   /* Dropdown */
   --dropdown-text: #ffffff;
   --dropdown-placeholder: rgba(255, 255, 255, 0.6);
-  --dropdown-option-hover: rgba(255, 255, 255, 0.1);
+  --dropdown-option-hover: #0066ff;
+  --dropdown-option-hover-text: #ffffff;
   --dropdown-option-bg: #ffffff;
   --dropdown-option-text: #000000;
   --dropdown-border: #000000;
@@ -361,7 +362,7 @@
 ### EQ Curve Drawing (JavaScript)
 ```javascript
 function drawCurve(ctx, width, height, data) {
-  const padding = { top: 16, bottom: 20, left: 40, right: 16 };
+  const padding = { top: 16, bottom: 22, left: 44, right: 16 };
   const plotW = width - padding.left - padding.right;
   const plotH = height - padding.top - padding.bottom;
 
@@ -386,7 +387,7 @@ function drawCurve(ctx, width, height, data) {
 
   // EQ curve
   ctx.strokeStyle = '#000000';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2.5;
   ctx.beginPath();
 
   for (let i = 0; i < data.length; i++) {
@@ -459,3 +460,4 @@ namespace Earware::Design {
 
 ## Version History
 - **v1.0** (2026-07-30): Initial neubrutalism design for Earware WebView UI
+- **v1.1** (2026-09-27): Updated to shipped state — curve stroke 2.5px, canvas padding `{top:16, bottom:22, left:44, right:16}`, added missing `--dropdown-option-hover-text` token, `--dropdown-option-hover` set to `#0066ff` to match `index.html`

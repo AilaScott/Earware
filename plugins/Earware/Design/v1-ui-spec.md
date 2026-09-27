@@ -72,7 +72,7 @@ dropdown. High contrast, flat, unapologetically bold.
 - **Background:** White (`#ffffff`)
 - **Border:** 3px solid `#000000` (hard black border)
 - **Canvas:** HTML5 Canvas for curve rendering
-- **Curve:** Black polyline, 2px stroke width
+- **Curve:** Black polyline, 2.5px stroke width
 - **Axis:** 
   - X-axis: Log frequency from 20Hz to 20kHz
   - Y-axis: Gain from -12dB to +12dB
@@ -128,8 +128,8 @@ dropdown. High contrast, flat, unapologetically bold.
 
 ## Canvas Integration Notes (WebView)
 - **Canvas:** EQ curve rendering
-- **Update Strategy:** On model change, redraw curve with 696 frequency/equalization points
-- **JUCE Bridge:** Model selection via `window.__JUCE__.backend.setParameterValue("model", index)`
+- **Update Strategy:** C++ computes the curve (`earwareComputeCurve`, 256 log-spaced points) and pushes it to JS via `window.updateCurve(...)`, which redraws the canvas
+- **JUCE Bridge:** Model selection via `getSliderState('model').setNormalisedValue(norm)` (slider-state API, not `setParameterValue`)
 
 ## File Structure
 ```

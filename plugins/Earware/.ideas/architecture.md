@@ -1,5 +1,11 @@
 # Earware — DSP Architecture Specification
 
+> **HISTORICAL ARCHIVE** — pre-implementation ideation from 2026-07-30. Superseded:
+> the DSP is now a single 2048-tap linear-phase FIR convolution (no IIR chain, no
+> `dsp::Gain`, no DC blocker), the model list is 6034 entries (not 6033), there is
+> no CSV curve path (curves are computed from coefficients in C++), and the bypass
+> ramp is 5 ms. See `docs/BUILD_AND_CI_REFERENCE.md` for the current architecture.
+
 ## Overview
 Earware is a preset-based corrective equalizer that applies AutoEq's recommended
 headphone corrections as a series of biquad IIR filters. The user selects a

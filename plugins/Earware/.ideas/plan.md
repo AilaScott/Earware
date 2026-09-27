@@ -1,5 +1,10 @@
 # Earware — Implementation Plan
 
+> **HISTORICAL ARCHIVE** — pre-implementation ideation from 2026-07-30. Superseded:
+> 736 models → 6034 entries; `<datalist>` → custom dropdown; CSV curve data (696
+> points) → 256 points computed in C++; `juce::dsp::Gain` preamp + 10 IIR biquads →
+> linear-phase FIR convolution; 60 Hz editor timer → 30 Hz. Kept as planning history.
+
 ## Complexity Score: 2 (Moderate)
 
 **Rationale:** Core DSP is standard biquad IIR filtering with pre-computed

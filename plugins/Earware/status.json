@@ -1,12 +1,17 @@
 {
   "plugin_name": "Earware",
-  "version": "v0.3.0",
+  "version": "v0.4.1",
   "current_phase": "ship_complete",
   "ui_framework": "webview",
   "complexity_score": 3,
   "created_at": "2026-07-30T19:44:48Z",
-  "last_modified": "2026-09-19T00:00:00Z",
+  "last_modified": "2026-09-27T00:00:00Z",
   "phase_history": [
+    {
+      "phase": "gui_curve_preamp_fix",
+      "completed_at": "2026-09-27T00:00:00Z",
+      "notes": "Fixed EQ curve display sitting too low vs AutoEQ reference graphics: earwareComputeCurve started sumDb at preset->preampGain, shifting the whole visual curve down by the preamp amount (e.g. -6.2 dB on K240 Studio). The preamp exists to prevent audio clipping and is baked into the FIR DC-gain normalization, but must not appear in the GUI curve. Now starts at 0.0f so the curve shows the raw EQ response. Audio path unaffected. Released as v0.4.1. Also rewrote docs/BUILD_AND_CI_REFERENCE.md (FIR architecture, corrected render-test thresholds) and fixed model search hyphen handling in the same release cycle."
+    },
     {
       "phase": "linear_phase_fir",
       "completed_at": "2026-09-19T00:00:00Z",

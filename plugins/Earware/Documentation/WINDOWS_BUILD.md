@@ -5,9 +5,9 @@ Target: Windows 10/11 x64, builds **VST3**, toolchain **MSVC** (Visual Studio 20
 ## What already works out of the box
 
 - `plugins/Earware/CMakeLists.txt:10-12` already selects the `VST3` format and sets `NEEDS_WEBVIEW2 TRUE` when `WIN32`.
-- The top-level `CMakeLists.txt:34-37` already defines `JUCE_USE_WIN_WEBVIEW2=1` on Windows.
+- The top-level `CMakeLists.txt:27-31` already defines `JUCE_USE_WIN_WEBVIEW2=1` on Windows.
 - The VST3 SDK is vendored inside JUCE 8 — no separate VST3 SDK download is needed.
-- Plugin sources contain no platform `#ifdef`s; the DSP and editor code is portable.
+- The DSP code is portable (no platform `#ifdef`s). The editor has one Windows-only block (`PluginEditor.cpp:39`, `#if JUCE_WINDOWS`) for the WebView2 backend and temp user-data folder.
 
 ## Prerequisites
 
@@ -19,17 +19,13 @@ Target: Windows 10/11 x64, builds **VST3**, toolchain **MSVC** (Visual Studio 20
 
 ## Required code changes
 
-Two known changes must be applied before a Windows build will compile. Both are **already applied in this repo** — they are listed here for reference. (The same list is embedded in `WINDOWS_BUILD_AGENT.md`.)
+One known change must be applied before a Windows build will compile. It is **already applied in this repo** — it is listed here for reference. (The same list is embedded in `WINDOWS_BUILD_AGENT.md`.)
 
 ### 1. Guard the headless render test for Linux only
 
 `plugins/Earware/CMakeLists.txt` — the `earware_rendertest` target defines `JUCE_JACK=1` (line 159). JACK exists only on Linux; the file will not compile on MSVC.
 
-The entire `earware_rendertest` block is wrapped in `if(UNIX AND NOT APPLE)` (lines 124-173). This target is a Linux development tool, so the full-block guard is the simplest correct fix. (Done.)
-
-### 2. Platform-neutral render output path
-
-`plugins/Earware/Source/RenderTest.cpp:187` hardcodes `/tmp/earware_rt_%s.wav`. `/tmp` does not exist on Windows, but the target is Linux-only, so this is moot. (Not applicable.)
+The entire `earware_rendertest` block is wrapped in `if(UNIX AND NOT APPLE)` (line 124 onwards). This target is a Linux development tool, so the full-block guard is the simplest correct fix. (Done.)
 
 ## Installing the WebView2 SDK
 
@@ -78,7 +74,6 @@ Add `-DJUCE_WEBVIEW2_PACKAGE_LOCATION=...` to the configure line when using Opti
 ## Troubleshooting
 
 - **`WebView2 wasn't found` / configure error from `find_package(WebView2 REQUIRED)`**: install via Option A above, or point `-DJUCE_WEBVIEW2_PACKAGE_LOCATION` at an extracted package (Option B).
-- **`JUCE_JACK` compile errors**: apply change #1 (Linux-only guard).
-- **`fopen` / `/tmp` runtime failure in the render test**: apply change #2.
+- **`JUCE_JACK` compile errors**: confirm the `earware_rendertest` block is guarded by `if(UNIX AND NOT APPLE)` (change #1).
 - **`git submodule update` fails on `_tools/JUCE`**: network or GitHub access issue — the submodule is public, no authentication needed.
 - **Prefer MSVC.** MinGW-w64 is not recommended for this plugin: JUCE's WebView2 code includes MSVC-only headers (`wrl.h`, `wrl/wrappers/corewrappers.h`), which MinGW-w64 does not ship.

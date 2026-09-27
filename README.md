@@ -2,7 +2,7 @@
 
 Earware is a preset-based corrective EQ that flattens your headphones toward an uncolored target using linear-phase FIR convolution.  It was born out of frustration with bad gain staging and invasive DRM software in big-box corrective plugins, as well as my fatigue from manually inputting EQ values in every DAW I use on every system I use.
 
-Throw it on your master and pick your cans from a searchable library of **6033 Headphone Models!**  No correction is applied until you choose your headphones.
+Throw it on your master and pick your cans from a searchable library of **6033 Headphone Models!** (6034 list entries including "No Model Selected").  No correction is applied until you choose your headphones.
  
  EQ data is sourced from [AutoEq](https://github.com/jaakkopasanen/AutoEq)'s recommended results — the highest-accuracy correction measurement available for each headphone.  Earware uses linear-phase FIR convolution so all frequencies are delayed equally — no phase distortion.  The tradeoff is ~23 ms of latency.  A preamp matching the correction gain keeps your listening volume consistent, and bypass lets you A/B against the uncorrected signal.
 
@@ -52,7 +52,7 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --config Release
 ```
 
-Targets: `Earware_VST3` (all platforms), `Earware_AU` (macOS), `earware_rendertest` (render test suite: magnitude accuracy, output level match, DC gain, IR symmetry, group delay, phase linearity, latency).
+Targets: `Earware_VST3` (all platforms), `Earware_AU` (macOS), `earware_rendertest` (Linux only — render test suite: magnitude accuracy, output level match, DC gain, IR symmetry, group delay, phase linearity, latency).
 
 Details: [Windows build notes](plugins/Earware/Documentation/WINDOWS_BUILD.md) and [build/CI reference](docs/BUILD_AND_CI_REFERENCE.md).
 

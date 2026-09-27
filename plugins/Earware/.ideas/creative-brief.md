@@ -1,5 +1,10 @@
 # Earware — Corrective Headphone EQ
 
+> **HISTORICAL ARCHIVE** — pre-implementation ideation from 2026-07-30. Superseded:
+> the dataset is AutoEq "Recommended Results" (6033 headphone models, 6034 list
+> entries — not oratory1990's 736), and the DSP is a linear-phase FIR convolution
+> with ~23 ms latency. Kept for product/creative context only.
+
 **Developer:** Aila  
 **Hook:** *"Perfect your headphones. Zero guesswork."*
 
