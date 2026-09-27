@@ -73560,7 +73560,7 @@ void earwareComputeCurve(int index, float* freqsOut, float* eqOut, int numPoints
         float freq = minFreq * std::pow(maxFreq / minFreq, t);
         freqsOut[i] = freq;
 
-        float sumDb = preset->preampGain;
+        float sumDb = 0.0f;
 
         for (int f = 0; f < 10; ++f)
         {
