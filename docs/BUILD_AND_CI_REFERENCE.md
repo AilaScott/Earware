@@ -1,113 +1,133 @@
 # Earware — Build & CI Reference
 
-Authoring notes for the coding agent. Captures the repo layout, the build/CI
-problems being fixed, their root causes (verified against JUCE 8.0.12 source
-and the live GitHub repo/release), and the approved implementation plan.
+Authoring notes for the coding agent. Captures the repo layout, DSP architecture, build/CI pipeline, and known facts verified against JUCE 8.0.12 source and the live GitHub repo.
 
 ## Repo (AilaScott/Earware, Linux-first)
 
-- `CMakeLists.txt` — root build: platform flags, WebView backend per platform,
-  JUCE submodule, applies the Linux WebView fix, adds the plugin.
-- `plugins/Earware/CMakeLists.txt` — `juce_add_plugin`; per-platform formats;
-  `earware_rendertest` (Linux-only headless DSP test).
-- `plugins/Earware/Source/` — `PluginProcessor` / `PluginEditor` /
-  `ParametricEQData` (+ `ui/public` WebView assets embedded via
-  `juce_add_binary_data`).
-- `_tools/JUCE` — git submodule, official `juce-framework/JUCE` pinned to 8.0.12
-  (commit `29396c22c9`).
-- `.github/workflows/build-release.yml` — release + workflow_dispatch CI.
-- `patches/juce-8.0.12-commandreceiver-utf8.patch` — the Linux WebView fix,
-  applied at configure time.
+- `CMakeLists.txt` — root build: platform flags, WebView backend per platform, JUCE submodule, applies the Linux WebView fix, adds the plugin.
+- `plugins/Earware/CMakeLists.txt` — `juce_add_plugin`; per-platform formats; `earware_rendertest` (headless DSP test suite).
+- `plugins/Earware/Source/` — `PluginProcessor` / `PluginEditor` / `ParametricEQData` / `LinearPhaseFIR` (+ `ui/public` WebView assets embedded via `juce_add_binary_data`).
+- `_tools/JUCE` — git submodule, official `juce-framework/JUCE` pinned to 8.0.12 (commit `29396c22c9`).
+- `.github/workflows/build-release.yml` — release + workflow_dispatch CI (Linux/Windows/macOS).
+- `patches/juce-8.0.12-commandreceiver-utf8.patch` — the Linux WebView fix, applied at configure time.
 - `docs/BUILD_AND_CI_REFERENCE.md` — this file.
 
-## The three problems being fixed
+## DSP Architecture
 
-1. Linux VST3 GUI renders blank/WHITE in the CI release artifact. JUCE's Linux
-   `WebBrowserComponent` paints white (`fallbackPaint`, `Colours::white`) when
-   the WebKit subprocess cannot render the page.
-2. The workflow zips `build/plugins/Earware/Earware_artefacts/Release/VST3/`
-   verbatim, so release zips carry that deeply nested (wrong) path instead of a
-   top-level `Earware.vst3/`.
-3. CI matrix is incomplete/wrong: no Windows job; Linux is VST3-only; macOS has
-   no deployment target, builds all targets but ships two, and is unsigned.
+### Signal chain
 
-## Root causes (verified)
+```
+Input → juce::dsp::Convolution (2048-tap linear-phase FIR) → Output
+```
 
-- **White Linux GUI** = JUCE's `CommandReceiver::sendCommand` writes a *char
-  count* instead of a *UTF-8 byte count* for the WebView init JSON
-  (`juce_WebBrowserComponent_linux.cpp`, the `jsonLength` line). With any
-  multibyte characters the init message truncates and the page never renders.
-  Fix: use `json.getNumBytesAsUTF8()`.
-  - The reference repo (audio-plugin-coder) bakes this fix into its **private**
-    `AilaScott/JUCE` fork and points `_tools/JUCE` at it.
-  - The Earware repo uses official JUCE 8.0.12 + applies the patch via
-    `git apply` inside CMake (root `CMakeLists.txt:49-72`). That mechanism can
-    silently no-op (e.g. `--check` returns 1), shipping an unfixed JUCE.
-    → make it deterministic.
-- **`withBackend(webview2)` + `withWinWebView2Options`** in
-  `PluginEditor.cpp:37-44` are honored **only on Windows**
-  (`juce_WebBrowserComponent_windows.cpp:1308`). On Linux/macOS the backend
-  enum is a no-op: `areOptionsSupported` only accepts `defaultBackend` and the
-  platform always uses WebKit / WKWebView. Keep the block Windows-only.
-- **Release v0.1.0 is stale/mixed**: the Linux asset was built Aug 4 from the
-  reference repo (flat zip, and it works); Windows assets came from the initial
-  release; macOS came from the 17:35 CI run. No current asset reflects the new
-  repo's CI. Do not treat the release as ground truth.
+The original 10-cascaded minimum-phase IIR biquads + preamp gain were replaced entirely by a single FIR convolution. No toggle or dual path.
 
-## JUCE facts learned
+### FIR design (LinearPhaseFIR.h)
 
-- `Backend` enum: `defaultBackend`, `ie`, `webview2`. On Windows,
-  `defaultBackend` → `Win32WebView` (IE); `webview2` → Chromium (requires
-  `JUCE_USE_WIN_WEBVIEW2`).
-- Linux plugin WebView uses the embedded `juce_linux_subprocess_helper`
-  (auto-built via `_juce_create_embedded_linux_subprocess_target` when the
-  target is a plugin on Linux with `NEEDS_WEB_BROWSER`). Already works.
-- macOS: WKWebView always; `WebKit.framework` auto-linked via `juce_gui_extra`
-  (`OSXFrameworks: WebKit`).
-- JUCE 8 minimum macOS deployment target ≈ 10.13; the reference sets
-  `-DCMAKE_OSX_DEPLOYMENT_TARGET=10.13`.
+1. **Magnitude sampling** — for each of 1025 DFT bins (0 Hz → Nyquist), evaluate the 10-biquad cascade transfer function `H(f) = preamp × ∏ biquadResponse(f)` using `biquadResponse()`.
+2. **Zero-phase spectrum** — build conjugate-symmetric magnitude-only spectrum (no phase), so the IR is symmetric (linear phase).
+3. **Direct IDFT** — `ir[n] = (1/N) Σ |H[k]| · e^(j2πkn/N)` with cosine shortcut for real-valued output.
+4. **fftShift** — swap halves to center the impulse at index N/2 (removes causal delay, centers group delay).
+5. **No windowing** — rectangular (identity). A Hamming window was tried and caused a systematic +5.36 dB offset; removing it fixed DC gain accuracy.
+6. **DC gain normalization** — scale IR tap sum to `preampLin × ∏ biquadDCGain()` where LSC returns shelf gain, PK/HSC return 1.0.
 
-## Approved changes (final plan)
+### Key constants
 
-1. **Root `CMakeLists.txt`**: replace the `git apply` block with a
-   deterministic CMake `file(READ)` → check → `string(REPLACE)` →
-   `file(WRITE)` on `juce_WebBrowserComponent_linux.cpp`; skip if
-   `json.getNumBytesAsUTF8()` is already present; replace the unfixed line
-   otherwise; `FATAL_ERROR` if neither form is found.
-2. **`PluginEditor.cpp`**: `withBackend(webview2)` +
-   `withWinWebView2Options(...)` + `withKeepPageLoadedWhenBrowserIsHidden()`
-   only on Windows; macOS/Linux use the default backend
-   (`withNativeIntegrationEnabled` + relays), matching the verified reference.
-3. **`plugins/Earware/CMakeLists.txt`**: formats → Linux `VST3`,
-   Windows `VST3`, macOS `VST3 AU`; delete `LV2_URI` var and `LV2URI` arg;
-   keep `AU_MAIN_TYPE`.
-4. **`.github/workflows/build-release.yml`**: stage a clean `dist/` and collect
-   with `find` so zips contain a top-level `Earware.vst3`; add a **Windows**
-   job (MSVC + WebView2 SDK via NuGet or `-DJUCE_WEBVIEW2_PACKAGE_LOCATION`);
-   Linux job builds VST3 and runs `earware_rendertest` under xvfb; macOS job
-   builds VST3+AU with `-DCMAKE_OSX_DEPLOYMENT_TARGET=10.13`, explicit targets,
-   and ad-hoc `codesign`; use `actions/upload-artifact@v5` (+ optional
-   `gh release upload`); asset names per README
-   (`Earware_Linux_x64_VST3.zip`, `Earware_Windows_x64_VST3.zip`,
-   `Earware_macOS_Universal_VST3.zip`, `Earware_macOS_Universal_AU.zip`).
-5. **`README.md` + `USER_MANUAL.md`**: formats → VST3 (Linux/Windows),
-   VST3+AU (macOS); drop LV2 and Standalone everywhere; fix the Downloads table
-   and build-targets list.
+| Parameter | Value |
+|-----------|-------|
+| `irLength` | 2048 taps |
+| Group delay | 1024 samples (23.2 ms at 44.1 kHz) |
+| Biquad formula | `A = sqrt(10^(gain/20))`, matching RBJ Audio EQ Cookbook / JUCE `makePeakFilter`/`makeLowShelf`/`makeHighShelf` |
+| Sample rate | Computed per `currentSampleRate` at runtime; `earwareComputeCurve` uses fixed 48 kHz (display only) |
 
-## Verification steps
+### Biquad frequency response — critical correction
 
-- Configure + build locally, then run `earware_rendertest` under xvfb.
-- Confirm the packaged zip contains `Earware.vst3` at the top level (not under
-  `build/plugins/...`).
-- Grep the repo for `LV2`/`lv2`/`Standalone`: only `status.json` history may
-  retain LV2 mentions.
+`biquadResponse()` (LinearPhaseFIR.h) and `iirBiquadResponse()` (RenderTest.cpp) **must use the filter's center frequency (`s.freq`) for coefficient computation** (alpha, cosC), and **only use the evaluation frequency (`freq`) for the z-transform evaluation** (`z1 = e^(-j2π·freq/sr)`). Using the evaluation frequency for both was the root cause of a 6.5 dB output-level mismatch between FIR and IIR reference paths.
 
-## Notes / open items
+### Bypass handling
 
-- LV2 removed entirely (user: legacy — only Reaper/Ardour use it).
-- Standalone removed (user: not wanted for release).
-- macOS GUI runtime is still unverified — flag this before calling macOS done.
-- Ad-hoc macOS codesign is included (optional-but-recommended); notarization
-  needs a Developer ID and is out of scope.
-- `AilaScott/JUCE` is **private** — do NOT point the submodule at it for a
-  public repo; keep official JUCE + the deterministic patch.
+A ring buffer (`dryDelayBuffer`, 8192 samples) delays the dry signal by `convLatency` samples during bypass transitions, ensuring click-free toggling despite the FIR's latency. The `bypassRamp` (5 ms smoothed value) crossfades between wet and delay-compensated dry.
+
+### Preamp
+
+Preamp gain is baked into the FIR DC gain normalization (audio path) but **not** included in the GUI curve display (`earwareComputeCurve` starts at `0.0f`, not `preset->preampGain`). The AutoEQ reference graphics show raw EQ response without preamp.
+
+## Render test suite (`earware_rendertest`)
+
+Deterministic (seeded `juce::Random(12345)`). 7 categories:
+
+| Test | What it verifies | Threshold |
+|------|-----------------|-----------|
+| Magnitude Accuracy | FIR vs analytical IIR response at 5 frequencies across 4 models | ≤ 0.5 dB |
+| Output Level Match | FIR vs IIR time-domain RMS on pink noise, 3 models | ≤ 0.1 dB |
+| DC Gain | FIR tap sum equals `preamp × ∏ biquadDCGains` | exact |
+| IR Symmetry | `ir[i] == ir[N-1-i]` (linear phase) | exact |
+| Group Delay | Measured GD equals N/2 (1024 samples) | ≤ 0.05 samples |
+| Phase Linearity | Unwrapped phase vs linear fit | ≤ 0.001 rad |
+| Latency | `getLatencySamples()` == 1024 | exact |
+
+Test models: 0 (flat), 1, 226 (K240 Studio), 630.
+
+### Reference implementations in RenderTest.cpp
+
+- `iirBiquadResponse()` — analytical complex response of a single biquad (used for magnitude comparison).
+- `iirProcessReference()` — time-domain TDF-II IIR processing using JUCE coefficients (5 normalized values per biquad after `assignImpl` strips a0).
+- `firMagnitudeDB()` — magnitude from FIR IR via DFT.
+- `iirMagnitudeDB()` — product of `iirBiquadResponse` across all stages + preamp.
+
+## UI / WebView
+
+- Model dropdown search strips non-alphanumeric characters (`/[^a-z0-9]/g`) from both query and model names before matching, so "HD650" finds "Sennheiser-HD-650".
+- Model list: 6,034 entries (index 0 = "No Model Selected" neutral preset).
+- Curve drawn on canvas: 256 log-spaced points, x-axis log-frequency (20 Hz–20 kHz), y-axis linear dB (±12 dB range, 0 dB at vertical center).
+- Data flows via `evaluateJavascript` from a 30 Hz editor timer; JS signals readiness via `earwareReady` event.
+
+## Build / CI
+
+### Local build
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --config Release --target Earware_VST3
+cmake --build build --config Release --target earware_rendertest
+./build/plugins/Earware/earware_rendertest
+```
+
+CI uses `xvfb-run` prefix for Linux configure/build/test steps.
+
+### Workflow (`build-release.yml`)
+
+Triggers: `release: published` or `workflow_dispatch` (with optional `tag` input).
+
+| Platform | Runner | Targets | Special |
+|----------|--------|---------|---------|
+| Linux | ubuntu-latest | VST3 + rendertest | apt deps (WebKitGTK/GTK3/Jack/ALSA), xvfb, runs tests headless |
+| Windows | windows-2022 | VST3 | WebView2 SDK via NuGet, MSVC |
+| macOS | macos-14 | VST3 + AU | Universal (arm64;x86_64), deployment target 10.13, ad-hoc codesign |
+
+Artifacts: `Earware_Linux_x64_VST3.zip`, `Earware_Windows_x64_VST3.zip`, `Earware_macOS_Universal_VST3.zip`, `Earware_macOS_Universal_AU.zip`. Uploads to release when tag is available.
+
+## JUCE facts
+
+- `assignImpl` (IIR Coefficients): removes a0 from 6-element input, divides all others by a0 → `getRawCoefficients()` returns 5 values `{b0/a0, b1/a0, b2/a0, a1/a0, a2/a0}`.
+- JUCE TDF-II processing: `output = input·b0 + lv1; lv1 = input·b1 - output·a1 + lv2; lv2 = input·b2 - output·a2`.
+- `minimumDecibels = -300.0` (not -100).
+- Linux WebView: `CommandReceiver::sendCommand` must write UTF-8 byte count (patched via `patches/`).
+- Windows WebView: `withBackend(webview2)` + `withWinWebView2Options` honored only on Windows; Linux/macOS use default backend (WebKit/WKWebView) — platform code ignores the enum.
+- macOS: WKWebView always; `WebKit.framework` auto-linked via `juce_gui_extra`.
+- JUCE 8 minimum macOS deployment target ≈ 10.13.
+
+## Resolved issues
+
+- **White Linux GUI** — JUCE `CommandReceiver` wrote char count instead of UTF-8 byte count; patched deterministically in root CMakeLists.
+- **Flat zip paths** — workflow stages `dist/` with top-level `Earware.vst3`.
+- **IIR→FIR magnitude mismatch** — biquad coefficient computation used evaluation frequency instead of filter center frequency (see DSP Architecture).
+- **GUI curve preamp offset** — `earwareComputeCurve` included `preampGain` in visual display; now starts at 0.
+- **Model search hyphens** — non-alphanumeric characters stripped from both sides before matching.
+
+## Open items
+
+- macOS GUI runtime unverified — flag before calling macOS done.
+- Ad-hoc codesign included; notarization needs a Developer ID (out of scope).
+- `AilaScott/JUCE` is **private** — do NOT point submodule at it; keep official JUCE + deterministic patch.
+- `status.json` retains historical LV2 mentions; LV2 and Standalone are removed from build.
