@@ -35,7 +35,14 @@ private:
 
     juce::String curveDataToJSON (int modelIndex);
 
+    void runDiagnosticsProbe();
+
     int lastPushedModelIndex = -1;
+
+    // Countdown (in 30 Hz ticks) from page load until the UI probe runs, so
+    // async fallbacks (models.json fetch) have time to finish first.
+    static constexpr int probeDelayTicks = 45; // ~1.5 s
+    int probeTicksRemaining = -1;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EarwareAudioProcessorEditor)
 };

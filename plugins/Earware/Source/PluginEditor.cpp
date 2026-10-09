@@ -58,7 +58,11 @@ EarwareAudioProcessorEditor::EarwareAudioProcessorEditor (EarwareAudioProcessor&
     options = options.withResourceProvider ([this] (const auto& url) { return getResource (url); });
 
     webView = std::make_unique<EarwareWebBrowserComponent> (options,
-        [this] { lastPushedModelIndex = -1; });
+        [this]
+        {
+            lastPushedModelIndex = -1;
+            probeTicksRemaining = probeDelayTicks;
+        });
 
     addAndMakeVisible (*webView);
     webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
@@ -88,6 +92,12 @@ void EarwareAudioProcessorEditor::timerCallback()
     if (! webView)
         return;
 
+    if (probeTicksRemaining > 0 && --probeTicksRemaining == 0)
+    {
+        probeTicksRemaining = -1;
+        runDiagnosticsProbe();
+    }
+
     int modelIdx = juce::jlimit (0, earwareNumModels - 1, juce::roundToInt (audioProcessor.apvts.getRawParameterValue ("model")->load()));
 
     if (modelIdx == lastPushedModelIndex)
@@ -113,6 +123,57 @@ void EarwareAudioProcessorEditor::timerCallback()
     catch (...)
     {
     }
+}
+
+// Runs ~1.5 s after the page finishes loading (see timerCallback). The probe
+// uses evaluateJavascript directly, which works even when the message-handler
+// bridge is dead, so it can still tell us (via the debug log) which part of the
+// UI failed: injected initialisation data, the page-side model list, or both.
+void EarwareAudioProcessorEditor::runDiagnosticsProbe()
+{
+    if (webView == nullptr)
+        return;
+
+    static constexpr const char* probeJs = R"JS(
+(function () {
+  try {
+    var j = window.__JUCE__;
+    var d = (j && j.initialisationData) || {};
+    var g = window.__EARWARE_DIAG__ || null;
+    return JSON.stringify({
+      initModels: Array.isArray(d.models) ? d.models.length : -1,
+      diag: g,
+      backend: !!(j && j.backend),
+      transport: !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.__JUCE__)
+                 || !!(window.chrome && window.chrome.webview),
+      uiBound: typeof window.updateModelInfo === 'function',
+      needError: !g || !(g.models > 0)
+    });
+  } catch (e) {
+    return JSON.stringify({ needError: true, error: String(e) });
+  }
+})())JS";
+
+    webView->evaluateJavascript (probeJs,
+        [this] (const juce::WebBrowserComponent::EvaluationResult& result)
+        {
+            const auto* value = result.getResult();
+            const auto json = value != nullptr ? value->toString() : juce::String();
+
+            if (json.isEmpty())
+            {
+                juce::Logger::writeToLog ("Earware UI probe: no result");
+                return;
+            }
+
+            juce::Logger::writeToLog ("Earware UI probe: " + json);
+
+            if (json.contains ("\"needError\":true") && webView != nullptr)
+                webView->evaluateJavascript (
+                    "(function(){var s=document.getElementById('modelStatus');"
+                    "if(s){s.textContent='Model list failed to load';}"
+                    "return 'ok';})()");
+        });
 }
 
 juce::String EarwareAudioProcessorEditor::curveDataToJSON (int modelIndex)
@@ -177,6 +238,26 @@ std::optional<juce::WebBrowserComponent::Resource> EarwareAudioProcessorEditor::
         resourceData = BinaryData::check_native_interop_js;
         resourceSize = BinaryData::check_native_interop_jsSize;
         mimeType = "text/javascript";
+    }
+    else if (path == "models.json")
+    {
+        // Fallback transport for the model list: the injected initialisation
+        // data does not reach the page on every platform (see #6), but the
+        // resource provider demonstrably does — the page itself loads through it.
+        juce::MemoryOutputStream json { 256 * 1024 };
+
+        json << "[";
+        for (int i = 0; i < earwareNumModels; ++i)
+        {
+            if (i > 0)
+                json << ",";
+            json << juce::JSON::toString (juce::var (earwareGetModelName (i)));
+        }
+        json << "]";
+
+        std::vector<std::byte> data (json.getDataSize());
+        std::memcpy (data.data(), json.getData(), json.getDataSize());
+        return juce::WebBrowserComponent::Resource { std::move (data), "application/json" };
     }
 
     if (resourceData != nullptr && resourceSize > 0)

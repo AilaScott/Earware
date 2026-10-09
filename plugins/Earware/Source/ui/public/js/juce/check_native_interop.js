@@ -44,15 +44,46 @@ if (
 
 {
   if (typeof window.__JUCE__ === "undefined") {
-    console.warn(
-      "The 'window.__JUCE__' object is undefined." +
-        " Native integration features will not work." +
-        " Defining a placeholder 'window.__JUCE__' object."
-    );
+    // Earware local modification (documented in docs/BUILD_AND_CI_REFERENCE.md):
+    // normally the host's injected user script defines window.__JUCE__ with a
+    // working postMessage. On some platforms that injection never runs (#6),
+    // while the script message handler itself is registered independently by
+    // the host — so rebuild the transport from whatever the host exposes
+    // instead of installing a no-op, which would silently kill every
+    // JS -> native event (parameter sync, bypass, selection).
+    var earwareTransport = null;
 
-    window.__JUCE__ = {
-      postMessage: function () {},
-    };
+    if (
+      window.webkit &&
+      window.webkit.messageHandlers &&
+      window.webkit.messageHandlers.__JUCE__
+    ) {
+      earwareTransport = function (object) {
+        window.webkit.messageHandlers.__JUCE__.postMessage(object);
+      };
+    } else if (window.chrome && window.chrome.webview) {
+      earwareTransport = function (object) {
+        window.chrome.webview.postMessage(object);
+      };
+    }
+
+    if (earwareTransport !== null) {
+      console.warn(
+        "The 'window.__JUCE__' object is undefined — the injected JUCE user " +
+          "script did not run. Falling back to the host message handler " +
+          "directly (Earware)."
+      );
+      window.__JUCE__ = { postMessage: earwareTransport };
+    } else {
+      console.warn(
+        "The 'window.__JUCE__' object is undefined." +
+          " Native integration features will not work." +
+          " Defining a placeholder 'window.__JUCE__' object."
+      );
+      window.__JUCE__ = {
+        postMessage: function () {},
+      };
+    }
   }
 
   if (typeof window.__JUCE__.initialisationData === "undefined") {

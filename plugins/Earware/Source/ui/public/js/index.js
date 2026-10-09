@@ -25,6 +25,62 @@ function initModelList(names) {
   modelNames = names;
 }
 
+function emitReady() {
+  if (window.__JUCE__ && window.__JUCE__.backend) {
+    window.__JUCE__.backend.emitEvent('earwareReady', {});
+  }
+}
+
+// Model list delivery has two paths: the initialisation data injected by the
+// host at document start (fast, used on platforms where it works), and a fetch
+// of models.json from the resource provider as fallback (#6 — on some setups
+// the injected data never reaches the page, but the resource provider does
+// since the page itself is served through it).
+function loadModelList() {
+  const injected =
+    window.__JUCE__ && window.__JUCE__.initialisationData
+      ? window.__JUCE__.initialisationData.models
+      : undefined;
+
+  const finish = (source) => {
+    window.__EARWARE_DIAG__ = { models: modelNames.length, source: source };
+    console.log(
+      'Earware: model list loaded (' + modelNames.length + ', source: ' + source + ')'
+    );
+    if (panelOpen) {
+      applyFilter();
+      renderPanel();
+    }
+    emitReady();
+  };
+
+  const fail = (err) => {
+    window.__EARWARE_DIAG__ = { models: 0, source: 'failed', error: String(err) };
+    console.warn('Earware: model list failed to load: ' + err);
+    modelStatus.textContent = 'Model list failed to load';
+    emitReady();
+  };
+
+  if (Array.isArray(injected) && injected.length > 0) {
+    initModelList(injected);
+    finish('injected');
+    return;
+  }
+
+  fetch('models.json')
+    .then((res) => {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    })
+    .then((names) => {
+      if (!Array.isArray(names) || names.length === 0)
+        throw new Error('empty list');
+      initModelList(names);
+      finish('fetch');
+    })
+    .catch(fail);
+}
+
 function renderPanel() {
   const fragment = document.createDocumentFragment();
   const shown = filteredIndices.slice(0, MAX_ITEMS);
@@ -320,9 +376,7 @@ window.addEventListener('resize', () => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-  if (window.__JUCE__ && window.__JUCE__.initialisationData && window.__JUCE__.initialisationData.models) {
-    initModelList(window.__JUCE__.initialisationData.models);
-  }
+  loadModelList();
 
   // Don't write a model into the input here: modelState hasn't been synchronised
   // with the backend yet, so getNormalisedValue() would force the first model
@@ -330,8 +384,4 @@ document.addEventListener('DOMContentLoaded', () => {
   // C++ timer push populate the input/curve after this.
   updateBypassUI(bypassState.getValue());
   drawCurve();
-
-  if (window.__JUCE__ && window.__JUCE__.backend) {
-    window.__JUCE__.backend.emitEvent('earwareReady', {});
-  }
 });
