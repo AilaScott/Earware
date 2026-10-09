@@ -50,8 +50,15 @@ EarwareAudioProcessorEditor::EarwareAudioProcessorEditor (EarwareAudioProcessor&
                      .withOptionsFrom (modelRelay)
                      .withOptionsFrom (bypassRelay);
 
-    for (int i = 0; i < earwareNumModels; ++i)
-        options = options.withInitialisationData ("models", juce::var (earwareGetModelName (i)));
+    // Test hook (see docs/BUILD_AND_CI_REFERENCE.md): set EARWARE_NO_INJECT_MODELS=1
+    // to skip the injected model list, forcing the page down the models.json
+    // fetch fallback — the path macOS needs when injection fails (#6).
+    const bool injectModels =
+        juce::SystemStats::getEnvironmentVariable ("EARWARE_NO_INJECT_MODELS", "").isEmpty();
+
+    if (injectModels)
+        for (int i = 0; i < earwareNumModels; ++i)
+            options = options.withInitialisationData ("models", juce::var (earwareGetModelName (i)));
 
     options = options.withEventListener ("earwareReady", [this] (juce::String) { lastPushedModelIndex = -1; });
 

@@ -100,6 +100,8 @@ cmake --build build --config Release --target earware_rendertest
 ./build/plugins/Earware/earware_rendertest
 ```
 
+Test hook: setting the environment variable `EARWARE_NO_INJECT_MODELS=1` skips the injected `models` initialisation data at editor construction, forcing the page to load the list via the `models.json` resource fallback — use it to exercise the #6 fallback path on a platform where injection normally works (e.g. Windows/REAPER: `$env:EARWARE_NO_INJECT_MODELS=1; .\reaper.exe`).
+
 CI uses `xvfb-run` prefix for Linux configure/build/test steps.
 
 ### Workflow (`build-release.yml`)
