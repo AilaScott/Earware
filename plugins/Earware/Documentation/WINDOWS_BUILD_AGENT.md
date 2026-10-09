@@ -14,35 +14,31 @@ SCOPE:
 - If you must change plugin source to get the build to compile, keep the change minimal and explain it.
 
 SOURCE OF TRUTH:
-Read plugins/Earware/Documentation/WINDOWS_BUILD.md in this repo first and follow it.
+Read plugins/Earware/Documentation/WINDOWS_BUILD.md first and follow it exactly.
+It holds the prerequisites, WebView2 SDK / NuGet setup, exact CMake commands, and the
+artifact path. This file intentionally does NOT duplicate those details (versions,
+commands, paths) so the two documents cannot drift — take them from WINDOWS_BUILD.md,
+not from memory.
 
 STEPS:
-1. Verify prerequisites: VS2022 with the "Desktop development with C++" workload, CMake 3.22+, Git.
+1. Read WINDOWS_BUILD.md and follow its prerequisites, WebView2 setup, and build commands.
 2. Ensure submodules are present:
      git submodule update --init --recursive
-   NOTE: _tools/JUCE points at the public repo https://github.com/juce-framework/JUCE.git
+   _tools/JUCE points at the public repo https://github.com/juce-framework/JUCE.git
    (pinned to the 8.0.12 release commit) — no GitHub authentication needed.
-3. Confirm the known change is already applied (it is, in this repo):
-   a) plugins/Earware/CMakeLists.txt: the earware_rendertest target (it sets JUCE_JACK=1,
-      line ~159) is already wrapped so it only builds on Linux (UNIX AND NOT APPLE).
-      JACK does not compile on MSVC.
+3. Confirm the known change is already present (it is, in this repo):
+   plugins/Earware/CMakeLists.txt wraps the earware_rendertest target (JUCE_JACK=1)
+   in if(UNIX AND NOT APPLE), since JACK does not compile on MSVC.
    If this change is missing, apply it and note that.
-4. Ensure the WebView2 SDK is available. Configure hard-fails without it
-   (find_package(WebView2 REQUIRED) in JUCEUtils.cmake). If missing, install it with:
-     Register-PackageSource -provider NuGet -name nugetRepository -location https://www.nuget.org/api/v2
-     Install-Package Microsoft.Web.WebView2 -Scope CurrentUser -RequiredVersion 1.0.3485.44 -Source nugetRepository
-   or: nuget install Microsoft.Web.WebView2 -Version 1.0.3485.44
-       and pass -DJUCE_WEBVIEW2_PACKAGE_LOCATION=<extracted package dir> at configure time.
-5. Configure and build:
-     cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
-     cmake --build build --config Release --target Earware_VST3
-6. VERIFY: report the absolute path of the produced artifact
-   (build/plugins/Earware/Earware_artefacts/Release/VST3/Earware.vst3).
+4. If configure fails on find_package(WebView2 REQUIRED), run the NuGet install
+   commands given in WINDOWS_BUILD.md.
+5. Build the Earware_VST3 target, then VERIFY: report the absolute path of the
+   produced .vst3 artifact (layout given in WINDOWS_BUILD.md).
    If a step fails, paste the full error output and stop rather than guessing at workarounds.
 
 REPORT BACK (concise):
 - The exact commands you ran.
-- Change a): already present, or applied by you.
+- rendertest guard: already present, or applied by you.
 - Build result (pass/fail) and the artifact path.
 - Any warnings or deviations from WINDOWS_BUILD.md.
 ````

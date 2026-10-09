@@ -4,12 +4,13 @@ Authoring notes for the coding agent. Captures the repo layout, DSP architecture
 
 ## Repo (AilaScott/Earware, Linux-first)
 
-- `CMakeLists.txt` — root build: platform flags, WebView backend per platform, JUCE submodule, applies the Linux WebView fix, adds the plugin.
+- `CMakeLists.txt` — root build: project version 0.4.1, platform flags, WebView backend per platform, JUCE submodule, applies the Linux WebView fix, adds the plugin.
 - `plugins/Earware/CMakeLists.txt` — `juce_add_plugin`; per-platform formats; `earware_rendertest` (headless DSP test suite).
 - `plugins/Earware/Source/` — `PluginProcessor` / `PluginEditor` / `ParametricEQData` / `LinearPhaseFIR` (+ `ui/public` WebView assets embedded via `juce_add_binary_data`).
+- `plugins/Earware/generate_data.py` — regenerates `Source/ParametricEQData.{h,cpp}` from AutoEq's recommended results (`_tools/AutoEq/results/README.md`). `_tools/AutoEq` is **not** a submodule and is not in the tree, so regeneration currently requires cloning AutoEq locally first.
 - `_tools/JUCE` — git submodule, official `juce-framework/JUCE` pinned to 8.0.12 (commit `29396c22c9`).
 - `.github/workflows/build-release.yml` — release + workflow_dispatch CI (Linux/Windows/macOS).
-- `patches/juce-8.0.12-commandreceiver-utf8.patch` — the Linux WebView fix, applied at configure time.
+- `patches/juce-8.0.12-commandreceiver-utf8.patch` — reference copy of the Linux WebView fix. It is **not** applied as a patch: root `CMakeLists.txt:60-96` performs the same edit in-place via `string(REPLACE ...)` + `file(WRITE ...)` and fails configure if the stock JUCE line isn't found.
 - `docs/BUILD_AND_CI_REFERENCE.md` — this file.
 
 ## DSP Architecture
@@ -79,8 +80,11 @@ Test models: 0 (flat), 1, 226 (AKG K240 Studio), 630 (Audio-Technica ATH-M30).
 
 ## UI / WebView
 
-- Model dropdown search strips non-alphanumeric characters (`/[^a-z0-9]/g`) from both query and model names before matching, so "HD650" finds "Sennheiser-HD-650".
-- Model list: 6,034 entries (index 0 = "No Model Selected" neutral preset).
+- Model dropdown search strips non-alphanumeric characters (`/[^a-z0-9]/g`) from both query and model names before matching, then falls back to substring matching — so "HD650" finds "Sennheiser HD 650".
+- Model list: 6,034 entries (index 0 = "No Model Selected" neutral preset). The dropdown renders at most 200 entries at a time (`MAX_ITEMS = 200` in `ui/public/js/index.js`); typing narrows the list.
+- **Model list delivery (issue #6):** two paths. Primary — `withInitialisationData("models", …)` ×6034 in `PluginEditor.cpp`, injected as user-script JS at document start. Fallback — `js/index.js` `loadModelList()` fetches **`models.json`** from the resource provider (`getResource()` builds it from `earwareModelNames`) when the injected array is absent/empty. After load it sets `window.__EARWARE_DIAG__` (`{models, source}`) and re-emits `earwareReady` so the C++ timer re-pushes the current model.
+- **Local JUCE JS modification:** `ui/public/js/juce/check_native_interop.js` normally untouched, but when `window.__JUCE__` is undefined (host user script never ran) it now rebuilds a working `postMessage` from `window.webkit.messageHandlers.__JUCE__` / `window.chrome.webview` instead of installing a no-op. It only activates when the injected script is absent, so healthy platforms are unaffected.
+- **UI probe:** ~1.5 s after page load the editor evaluates a JS probe (`runDiagnosticsProbe()` in `PluginEditor.cpp`) via `evaluateJavascript` (works even when the message-handler bridge is dead), logs `Earware UI probe: {…}` through `juce::Logger`, and writes "Model list failed to load" into the status bar if the page-side list never arrived. JS also logs `Earware: model list loaded (N, source)`.
 - Curve drawn on canvas: 256 log-spaced points, x-axis log-frequency (20 Hz–20 kHz), y-axis linear dB (±12 dB range, 0 dB at vertical center).
 - Data flows via `evaluateJavascript` from a 30 Hz editor timer; JS signals readiness via `earwareReady` event.
 
@@ -108,14 +112,14 @@ Triggers: `release: published` or `workflow_dispatch` (with optional `tag` input
 | Windows | windows-2022 | VST3 | WebView2 SDK via NuGet, MSVC |
 | macOS | macos-14 | VST3 + AU | Universal (arm64;x86_64), deployment target 10.13, ad-hoc codesign |
 
-Artifacts: `Earware_Linux_x64_VST3.zip`, `Earware_Windows_x64_VST3.zip`, `Earware_macOS_Universal_VST3.zip`, `Earware_macOS_Universal_AU.zip`. Uploads to release when tag is available.
+Workflow artifacts (`actions/upload-artifact`): `Earware_Linux_x64_VST3`, `Earware_Windows_x64_VST3`, `Earware_macOS_Universal` (one combined VST3+AU artifact; artifact names have no `.zip` suffix). Release assets (the zips staged outside `dist/`): `Earware_Linux_x64_VST3.zip`, `Earware_Windows_x64_VST3.zip`, `Earware_macOS_Universal_VST3.zip`, `Earware_macOS_Universal_AU.zip`. Release upload runs only when a tag is available.
 
 ## JUCE facts
 
 - `assignImpl` (IIR Coefficients): removes a0 from 6-element input, divides all others by a0 → `getRawCoefficients()` returns 5 values `{b0/a0, b1/a0, b2/a0, a1/a0, a2/a0}`.
 - JUCE TDF-II processing: `output = input·b0 + lv1; lv1 = input·b1 - output·a1 + lv2; lv2 = input·b2 - output·a2`.
 - `minimumDecibels = -300.0` (not -100).
-- Linux WebView: `CommandReceiver::sendCommand` must write UTF-8 byte count (patched via `patches/`).
+- Linux WebView: `CommandReceiver::sendCommand` must write UTF-8 byte count (fixed by the root CMakeLists in-place edit; `patches/` holds the reference diff).
 - Windows WebView: `withBackend(webview2)` + `withWinWebView2Options` honored only on Windows; Linux/macOS use default backend (WebKit/WKWebView) — platform code ignores the enum.
 - macOS: WKWebView always; `WebKit.framework` auto-linked via `juce_gui_extra`.
 - JUCE 8 minimum macOS deployment target ≈ 10.13.
@@ -131,6 +135,9 @@ Artifacts: `Earware_Linux_x64_VST3.zip`, `Earware_Windows_x64_VST3.zip`, `Earwar
 ## Open items
 
 - macOS GUI runtime unverified — flag before calling macOS done.
+- macOS AU is currently broken (issue #6 — empty model list). Mitigation shipped (models.json fallback + transport fallback + UI probe) but **not yet verified on macOS** — do not claim AU works until someone confirms it.
+- Root cause of #6 still unknown: model-data content is proven valid (Linux executes the identical injected blob), so a macOS-specific user-script injection failure is the leading hypothesis; the probe's `initModels`/`transport` fields discriminate the cases once a macOS log exists.
+- `_tools/AutoEq` is not vendored/submoduled — `generate_data.py` cannot regenerate `ParametricEQData.{h,cpp}` from a fresh clone without a local AutoEq checkout.
 - Ad-hoc codesign included; notarization needs a Developer ID (out of scope).
 - `AilaScott/JUCE` is **private** — do NOT point submodule at it; keep official JUCE + deterministic patch.
 - `status.json` retains historical LV2 mentions; LV2 and Standalone are removed from build.

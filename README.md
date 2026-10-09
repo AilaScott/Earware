@@ -21,7 +21,7 @@ Throw it on your master and pick your cans from a searchable library of **6033 H
 
 
 
-> **I need help!!!!** The macOS VST3/AU build is new and not yet field-tested.  Similarly, no DAWS have been tested extensively besides Reaper on any platform. Please try it in your DAW and [open an issue](https://github.com/AilaScott/Earware/issues/new), including which DAW/OS you're using.
+> **I need help!!!!** The macOS build is new and not yet field-tested, and the **macOS AU is currently broken** (fix in progress).  Similarly, no DAWS have been tested extensively besides Reaper on any platform. Please try it in your DAW and [open an issue](https://github.com/AilaScott/Earware/issues/new), including which DAW/OS you're using.
 
 ## For Musicians and Engineers!
 
@@ -42,7 +42,7 @@ See the [user manual](plugins/Earware/Documentation/USER_MANUAL.md) for full usa
 
 ## For Devs
 
-Building from source requires **CMake ≥ 3.22**, a **C++20 compiler**, and the **JUCE 8.0.12** git submodule (a vendored JSON-length fix is applied at configure time — see `patches/`). Platform tooling: WebKitGTK/GTK3/Jack/ALSA on Linux, Visual Studio 2022 + the WebView2 SDK (resolved via NuGet) on Windows, and the system WKWebView on macOS.
+Building from source requires **CMake ≥ 3.22**, a **C++20 compiler**, and the **JUCE 8.0.12** git submodule (a vendored Linux WebView UTF-8 fix is applied at configure time by the root `CMakeLists.txt` via in-place source edit — reference copy in `patches/`). Platform tooling: WebKitGTK/GTK3/Jack/ALSA on Linux, Visual Studio 2022 + the WebView2 SDK (resolved via NuGet) on Windows, and the system WKWebView on macOS.
 
 ```bash
 git clone https://github.com/AilaScott/Earware.git
