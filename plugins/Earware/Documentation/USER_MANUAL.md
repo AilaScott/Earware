@@ -4,8 +4,10 @@ Earware is a preset-based corrective EQ plugin that applies [AutoEq](https://git
 
 ## Installation
 
-- **VST3:** Copy `Earware.vst3` to your VST3 directory (`~/.vst3/` on Linux, `%COMMONPROGRAMFILES%\VST3\` on Windows).
+- **VST3:** Copy the whole `Earware.vst3` folder to your VST3 directory (`~/.vst3/` on Linux, `%COMMONPROGRAMFILES%\VST3\` on Windows, `~/Library/Audio/Plug-Ins/VST3/` on macOS).
 - **AU (macOS):** Copy `Earware.component` to `/Library/Audio/Plug-Ins/Components/`.
+
+Windows builds need no additional runtime — no VC++ Redistributable install is required.
 
 ## Quick Start
 
@@ -35,6 +37,12 @@ Linear phase means the correction adds **no phase distortion**, but it introduce
 
 - VST3 (Linux, Windows, macOS)
 - AU (macOS)
+
+## Troubleshooting
+
+- **The plugin does not appear in my DAW** — Make sure you copied the whole `Earware.vst3` folder (on Windows, the folder contains `Contents/x86_64-win/Earware.vst3`). Then rescan your plugin list in the DAW's preferences and restart the DAW if needed.
+- **"The effect plug-in could not be loaded"** — Close the DAW completely and reopen it, then rescan your plugin list. A stale plugin cache can list the plugin even when it fails to load.
+- **"Model list failed to load" in the status bar** — The headphone list did not reach the plugin UI. This is a known issue on the macOS AU build. Please [open an issue](https://github.com/AilaScott/Earware/issues/new) with your OS and DAW.
 
 ## Resources
 

@@ -26,10 +26,13 @@ STEPS:
      git submodule update --init --recursive
    _tools/JUCE points at the public repo https://github.com/juce-framework/JUCE.git
    (pinned to the 8.0.12 release commit) — no GitHub authentication needed.
-3. Confirm the known change is already present (it is, in this repo):
+3. Confirm the known changes are already present (they are, in this repo):
    plugins/Earware/CMakeLists.txt wraps the earware_rendertest target (JUCE_JACK=1)
    in if(UNIX AND NOT APPLE), since JACK does not compile on MSVC.
-   If this change is missing, apply it and note that.
+   The root CMakeLists.txt also sets a static MSVC runtime
+   (CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded) so the build needs no VC++
+   Redistributable — do not revert it to the dynamic runtime.
+   If either change is missing, apply it and note that.
 4. If configure fails on find_package(WebView2 REQUIRED), run the NuGet install
    commands given in WINDOWS_BUILD.md.
 5. Build the Earware_VST3 target, then VERIFY: report the absolute path of the
@@ -38,7 +41,7 @@ STEPS:
 
 REPORT BACK (concise):
 - The exact commands you ran.
-- rendertest guard: already present, or applied by you.
+- rendertest guard and static MSVC runtime: already present, or applied by you.
 - Build result (pass/fail) and the artifact path.
 - Any warnings or deviations from WINDOWS_BUILD.md.
 ````

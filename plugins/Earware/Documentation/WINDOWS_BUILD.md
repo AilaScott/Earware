@@ -5,7 +5,8 @@ Target: Windows 10/11 x64, builds **VST3**, toolchain **MSVC** (Visual Studio 20
 ## What already works out of the box
 
 - `plugins/Earware/CMakeLists.txt:10-12` already selects the `VST3` format and sets `NEEDS_WEBVIEW2 TRUE` when `WIN32`.
-- The top-level `CMakeLists.txt:27-31` already defines `JUCE_USE_WIN_WEBVIEW2=1` on Windows.
+- The top-level `CMakeLists.txt` already defines `JUCE_USE_WIN_WEBVIEW2=1` on Windows.
+- The top-level `CMakeLists.txt` also sets `CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded` for MSVC, so Windows builds link the MSVC runtime statically and do **not** require the VC++ Redistributable on the target machine (matches CI).
 - The VST3 SDK is vendored inside JUCE 8 — no separate VST3 SDK download is needed.
 - The DSP code is portable (no platform `#ifdef`s). The editor has one Windows-only block (`PluginEditor.cpp:39`, `#if JUCE_WINDOWS`) for the WebView2 backend and temp user-data folder.
 
@@ -68,12 +69,13 @@ Add `-DJUCE_WEBVIEW2_PACKAGE_LOCATION=...` to the configure line when using Opti
 
 ## Install and test
 
-- Copy the `Earware.vst3` folder to `C:\Program Files\Common Files\VST3\` and rescan your DAW.
+- Copy the whole `Earware.vst3` folder to a VST3 directory and rescan your DAW. Standard choice: `C:\Program Files\Common Files\VST3\`. Note that writing under `C:\Program Files` requires admin rights (a UAC prompt). A per-DAW folder also works — for REAPER, `C:\Program Files\REAPER (x64)\Plugins\` is on the default scan path (`vstpath64` in `reaper.ini`) and needs the same admin rights.
 - WebView2 runtime: the Evergreen runtime ships preinstalled on Windows 10/11. `JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1` (set in `plugins/Earware/CMakeLists.txt`) only removes the loader dependency, not the runtime — offline or older systems need the runtime installed separately.
 
 ## Troubleshooting
 
 - **`WebView2 wasn't found` / configure error from `find_package(WebView2 REQUIRED)`**: install via Option A above, or point `-DJUCE_WEBVIEW2_PACKAGE_LOCATION` at an extracted package (Option B).
+- **DAW says the plugin could not be loaded**: confirm you copied the whole `Earware.vst3` folder (not the inner `Contents/x86_64-win/Earware.vst3` file). Then close the DAW completely and reopen it so its plugin cache is rebuilt, and rescan.
 - **`JUCE_JACK` compile errors**: confirm the `earware_rendertest` block is guarded by `if(UNIX AND NOT APPLE)` (change #1).
 - **`git submodule update` fails on `_tools/JUCE`**: network or GitHub access issue — the submodule is public, no authentication needed.
 - **Prefer MSVC.** MinGW-w64 is not recommended for this plugin: JUCE's WebView2 code includes MSVC-only headers (`wrl.h`, `wrl/wrappers/corewrappers.h`), which MinGW-w64 does not ship.

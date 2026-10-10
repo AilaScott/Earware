@@ -36,7 +36,9 @@ Download the build for your platform from the [Releases](https://github.com/Aila
 To install, unzip and copy the plugin folder into your audio plugin directory:
 
 - **VST3** — `~/.vst3/` (Linux), `C:\Program Files\Common Files\VST3\` (Windows), `~/Library/Audio/Plug-Ins/VST3/` (macOS)
-- **AU (macOS)** — `~/Library/Audio/Plug-Ins/Components/`
+- **AU (macOS)** — `/Library/Audio/Plug-Ins/Components/`
+
+Copy the whole `Earware.vst3` folder (not just the file inside it). If the plugin does not appear in your DAW afterwards, rescan your plugin list and restart the DAW. Windows builds need no additional runtime: the MSVC runtime is linked statically, so no VC++ Redistributable install is required.
 
 See the [user manual](plugins/Earware/Documentation/USER_MANUAL.md) for full usage.
 
