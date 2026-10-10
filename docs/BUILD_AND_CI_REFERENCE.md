@@ -111,7 +111,7 @@ Triggers: `release: published` or `workflow_dispatch` (with optional `tag` input
 | Platform | Runner | Targets | Special |
 |----------|--------|---------|---------|
 | Linux | ubuntu-latest | VST3 + rendertest | apt deps (WebKitGTK/GTK3/Jack/ALSA), xvfb, runs tests headless |
-| Windows | windows-2022 | VST3 | WebView2 SDK via NuGet, MSVC |
+| Windows | windows-2022 | VST3 | WebView2 SDK via NuGet, MSVC, static CRT (`/MT`, no VC++ Redistributable needed) |
 | macOS | macos-14 | VST3 + AU | Universal (arm64;x86_64), deployment target 10.13, ad-hoc codesign |
 
 Workflow artifacts (`actions/upload-artifact`): `Earware_Linux_x64_VST3`, `Earware_Windows_x64_VST3`, `Earware_macOS_Universal` (one combined VST3+AU artifact; artifact names have no `.zip` suffix). Release assets (the zips staged outside `dist/`): `Earware_Linux_x64_VST3.zip`, `Earware_Windows_x64_VST3.zip`, `Earware_macOS_Universal_VST3.zip`, `Earware_macOS_Universal_AU.zip`. Release upload runs only when a tag is available.
@@ -130,6 +130,7 @@ Workflow artifacts (`actions/upload-artifact`): `Earware_Linux_x64_VST3`, `Earwa
 
 - **White Linux GUI** — JUCE `CommandReceiver` wrote char count instead of UTF-8 byte count; patched deterministically in root CMakeLists.
 - **Flat zip paths** — workflow stages `dist/` with top-level `Earware.vst3`.
+- **"The following effect plug-in could not be loaded" (Windows/REAPER)** — builds used the dynamic MSVC runtime (`/MD`); machines without the VC++ 2015+ Redistributable fail `LoadLibrary` with missing `MSVCP140.dll`/`VCRUNTIME140*.dll`. Root CMakeLists now sets `CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded` for MSVC (static `/MT`), so Windows artifacts have no redist dependency. Note: REAPER's plugin cache can show a full entry (GUID/name) even for an unloadable DLL, because it reads the bundle's `moduleinfo.json` without loading the module.
 - **IIR→FIR magnitude mismatch** — biquad coefficient computation used evaluation frequency instead of filter center frequency (see DSP Architecture).
 - **GUI curve preamp offset** — `earwareComputeCurve` included `preampGain` in visual display; now starts at 0.
 - **Model search hyphens** — non-alphanumeric characters stripped from both sides before matching.
