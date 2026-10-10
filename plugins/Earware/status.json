@@ -1,12 +1,17 @@
 {
   "plugin_name": "Earware",
-  "version": "v0.4.1",
+  "version": "v0.5.0-beta.1",
   "current_phase": "ship_complete",
   "ui_framework": "webview",
   "complexity_score": 3,
   "created_at": "2026-07-30T19:44:48Z",
-  "last_modified": "2026-09-27T00:00:00Z",
+  "last_modified": "2026-10-10T13:30:00Z",
   "phase_history": [
+    {
+      "phase": "bugfix_macos_au_model_list_fallback",
+      "completed_at": "2026-10-10T13:30:00Z",
+      "notes": "Mitigation for issue #6 (macOS AU empty model list). Primary path unchanged (withInitialisationData('models') injection). Added a fallback: getResource() now serves a models.json built from earwareModelNames, and loadModelList() fetches it when the injected array is absent/empty; on success it sets window.__EARWARE_DIAG__ ({models, source}) and re-emits earwareReady so the C++ timer re-pushes the current model, on failure it writes 'Model list failed to load' into the status bar. check_native_interop.js no longer installs a no-op __JUCE__ placeholder when the injected script never ran - it rebuilds a working postMessage from window.webkit.messageHandlers.__JUCE__ / window.chrome.webview (only activates when the script is absent, so healthy platforms are unaffected). Added an editor UI probe (~1.5s after page load) that evaluates JS via evaluateJavascript, logs 'Earware UI probe: {...}' via juce::Logger and injects the status-bar error if the page-side list never arrived. Added EARWARE_NO_INJECT_MODELS=1 env hook to skip injection and force the fetch path for testing. Root cause of the AU failure still unknown (identical blob executes on Linux), so this ships the fallback plus diagnostics for the next macOS report. Also: root CMakeLists now sets CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded for MSVC so Windows builds need no VC++ Redistributable (fixes 'the effect plug-in could not be loaded' on machines without it), and docs synced (install paths, troubleshooting, static CRT note). Released as v0.5.0-beta.1 prerelease; macOS AU still unverified on real Mac hardware."
+    },
     {
       "phase": "gui_curve_preamp_fix",
       "completed_at": "2026-09-27T00:00:00Z",
