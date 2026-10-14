@@ -56,6 +56,8 @@ cmake --build build --config Release
 
 Targets: `Earware_VST3` (all platforms), `Earware_AU` (macOS), `earware_rendertest` (Linux only — render test suite: magnitude accuracy, output level match, DC gain, IR symmetry, group delay, phase linearity, latency).
 
+Two source files are generated and committed — do not hand-edit either: `Source/ParametricEQData.{h,cpp}` holds the EQ data and model names (regenerate with `python3 plugins/Earware/generate_data.py`, which needs a local AutoEq checkout), and `Source/ui/public/js/models.js` holds the same model names for the UI (regenerate with `python3 plugins/Earware/generate_models_js.py`, which reads the committed C++ table and needs nothing else).
+
 Details: [Windows build notes](plugins/Earware/Documentation/WINDOWS_BUILD.md) and [build/CI reference](docs/BUILD_AND_CI_REFERENCE.md).
 
 ## License

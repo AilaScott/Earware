@@ -1,4 +1,7 @@
 import { getSliderState, getToggleState } from './juce/index.js';
+import { EARWARE_MODEL_NAMES, EARWARE_MODEL_COUNT } from './models.js';
+
+window.__EARWARE_EMBEDDED_COUNT__ = EARWARE_MODEL_COUNT;
 
 let modelState = getSliderState('model');
 let bypassState = getToggleState('bypass');
@@ -31,11 +34,17 @@ function emitReady() {
   }
 }
 
-// Model list delivery has two paths: the initialisation data injected by the
-// host at document start (fast, used on platforms where it works), and a fetch
-// of models.json from the resource provider as fallback (#6 — on some setups
-// the injected data never reaches the page, but the resource provider does
-// since the page itself is served through it).
+// Model list delivery has three tiers, tried in order (#6 — on macOS
+// WKWebView the injected initialisation data never reaches the page, and
+// fetch() against JUCE's custom juce:// scheme handler fails there too):
+//
+//   1. injected — withInitialisationData("models", ...) at document start.
+//      Fastest, and the normal path on Linux/Windows.
+//   2. embedded  — models.js, a generated module compiled into the binary and
+//      served as an ordinary subresource. This is the tier that cannot fail:
+//      if it did not load, this module would not be running either.
+//   3. fetch     — models.json from the resource provider. Kept as a safety
+//      net for setups where the module itself is unavailable.
 function loadModelList() {
   const injected =
     window.__JUCE__ && window.__JUCE__.initialisationData
@@ -43,10 +52,18 @@ function loadModelList() {
       : undefined;
 
   const finish = (source) => {
-    window.__EARWARE_DIAG__ = { models: modelNames.length, source: source };
+    window.__EARWARE_DIAG__ = {
+      models: modelNames.length,
+      source: source,
+      embedded: EARWARE_MODEL_COUNT,
+    };
     console.log(
       'Earware: model list loaded (' + modelNames.length + ', source: ' + source + ')'
     );
+    // Clear a failure message left behind by the editor-side probe if the list
+    // turned up after the probe had already given up on it.
+    if (modelStatus.textContent.indexOf('failed to load') >= 0)
+      modelStatus.textContent = 'No model selected';
     if (panelOpen) {
       applyFilter();
       renderPanel();
@@ -55,15 +72,28 @@ function loadModelList() {
   };
 
   const fail = (err) => {
-    window.__EARWARE_DIAG__ = { models: 0, source: 'failed', error: String(err) };
-    console.warn('Earware: model list failed to load: ' + err);
-    modelStatus.textContent = 'Model list failed to load';
+    const reason = String(err);
+    window.__EARWARE_DIAG__ = {
+      models: 0,
+      source: 'failed',
+      embedded: EARWARE_MODEL_COUNT,
+      error: reason,
+    };
+    console.warn('Earware: model list failed to load: ' + reason);
+    modelStatus.textContent =
+      'Model list failed to load (' + reason.replace(/^Error:\s*/, '').slice(0, 60) + ')';
     emitReady();
   };
 
   if (Array.isArray(injected) && injected.length > 0) {
     initModelList(injected);
     finish('injected');
+    return;
+  }
+
+  if (Array.isArray(EARWARE_MODEL_NAMES) && EARWARE_MODEL_NAMES.length > 0) {
+    initModelList(EARWARE_MODEL_NAMES);
+    finish('embedded');
     return;
   }
 

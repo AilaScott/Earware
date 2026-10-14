@@ -149,6 +149,8 @@ void EarwareAudioProcessorEditor::runDiagnosticsProbe()
     var g = window.__EARWARE_DIAG__ || null;
     return JSON.stringify({
       initModels: Array.isArray(d.models) ? d.models.length : -1,
+      embedded: typeof window.__EARWARE_EMBEDDED_COUNT__ === 'number'
+                  ? window.__EARWARE_EMBEDDED_COUNT__ : -1,
       diag: g,
       backend: !!(j && j.backend),
       transport: !!(window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.__JUCE__)
@@ -176,10 +178,16 @@ void EarwareAudioProcessorEditor::runDiagnosticsProbe()
             juce::Logger::writeToLog ("Earware UI probe: " + json);
 
             if (json.contains ("\"needError\":true") && webView != nullptr)
+            {
+                // Repeat whatever reason the page recorded, so a screenshot of
+                // the plugin window is enough to diagnose without log access.
                 webView->evaluateJavascript (
                     "(function(){var s=document.getElementById('modelStatus');"
-                    "if(s){s.textContent='Model list failed to load';}"
+                    "if(s){var d=window.__EARWARE_DIAG__||{};"
+                    "var r=d.error?String(d.error).replace(/^Error:\\s*/,'').slice(0,60):'no data';"
+                    "s.textContent='Model list failed to load ('+r+')';}"
                     "return 'ok';})()");
+            }
         });
 }
 
@@ -246,11 +254,23 @@ std::optional<juce::WebBrowserComponent::Resource> EarwareAudioProcessorEditor::
         resourceSize = BinaryData::check_native_interop_jsSize;
         mimeType = "text/javascript";
     }
+    else if (path == "js/models.js")
+    {
+        // Embedded model names (generated from ParametricEQData.cpp by
+        // plugins/Earware/generate_models_js.py). Loaded as a plain module
+        // subresource, which is the one delivery mechanism that works on every
+        // platform: the host's initialisation data does not reach the page on
+        // macOS WKWebView (#6), and neither does fetch() against JUCE's custom
+        // juce:// scheme handler there.
+        resourceData = BinaryData::models_js;
+        resourceSize = BinaryData::models_jsSize;
+        mimeType = "text/javascript";
+    }
     else if (path == "models.json")
     {
-        // Fallback transport for the model list: the injected initialisation
-        // data does not reach the page on every platform (see #6), but the
-        // resource provider demonstrably does — the page itself loads through it.
+        // Last-resort tier of the model list chain (injected -> embedded ->
+        // fetch). Unreachable while models.js carries names; kept for setups
+        // where the module itself is unavailable.
         juce::MemoryOutputStream json { 256 * 1024 };
 
         json << "[";
